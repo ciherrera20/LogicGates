@@ -1,8 +1,6 @@
-from Gate import Gate
-from Source import Source
-from Sink import Sink
-from Graph import DirectedGraph
-from HybridMethod import hybridmethod
+from gates.gate import Gate
+from gates.builtins import Sink, Source
+from gates.utils import DirectedGraph, hybridmethod
 from collections import deque
 
 class CompoundGate(Gate):
@@ -26,6 +24,8 @@ class GateDefinition:
     '''
     Represents the definition for a custom gate. Instances of custom gates are of type CompoundGate.
     '''
+    _num_definitions = 0
+
     def __init__(self, num_inputs, num_outputs, name, project):
         self._num_inputs = num_inputs
         self._num_outputs = num_outputs
@@ -104,7 +104,10 @@ class GateDefinition:
         # Remove to connections
         for successor in self._graph.get_direct_successors(gate._uid):
             self._reorder = True  # Edge has been deleted
-            del self._connections[gate._uid, successor]
+            
+            # If the gate had a connection to itself then we can't delete it again
+            if (gate._uid, successor) in self._connections:
+                del self._connections[gate._uid, successor]
         
         # Remove the gate from the graph
         self._graph.remove_vertex(gate._uid)
@@ -115,7 +118,7 @@ class GateDefinition:
             del self._state[gate._uid]
 
     def remove_gate_type(self, name):
-        gate_uids = self._gate_types[name]
+        gate_uids = list(self._gate_types[name])
         for gate_uid in gate_uids:
             self.remove_gate(self._gates[gate_uid])
 

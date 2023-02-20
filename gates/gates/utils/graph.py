@@ -5,7 +5,6 @@ class DirectedGraph():
     '''
     Directed Graph represented using adjacency lists implemented via dicts and sets.
     '''
-
     def __init__(self):
         '''
         Create a directed graph

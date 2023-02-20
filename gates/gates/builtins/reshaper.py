@@ -1,4 +1,4 @@
-from Gate import Gate
+from gates.gate import Gate
 
 class Reshaper(Gate):
     def __init__(self, input_dims, output_dims):

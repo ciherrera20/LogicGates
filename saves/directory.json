@@ -1,0 +1,92 @@
+{
+    "folders": {
+        "builtins": {
+            "deleteable": true,
+            "renameable": true
+        },
+        "elementary_gates": {
+            "deleteable": true,
+            "renameable": true
+        },
+        "clocks": {
+            "deleteable": true,
+            "renameable": true
+        },
+        "memory": {
+            "deleteable": true,
+            "renameable": true
+        }
+    },
+    "components": {
+        "NAND": {
+            "deleteable": false,
+            "renameable": false
+        },
+        "Source": {
+            "deleteable": false,
+            "renameable": false
+        },
+        "Sink": {
+            "deleteable": false,
+            "renameable": false
+        },
+        "Reshaper": {
+            "deleteable": false,
+            "renameable": false
+        },
+        "NOR": {
+            "deleteable": true,
+            "renameable": true
+        },
+        "OR": {
+            "deleteable": true,
+            "renameable": true
+        },
+        "NOT": {
+            "deleteable": true,
+            "renameable": true
+        },
+        "AND": {
+            "deleteable": true,
+            "renameable": true
+        },
+        "OnOffClock": {
+            "deleteable": true,
+            "renameable": true
+        },
+        "CLOCK": {
+            "deleteable": true,
+            "renameable": true
+        },
+        "RsNorLatch": {
+            "deleteable": true,
+            "renameable": true
+        },
+        "AND_8bit": {
+            "deleteable": true,
+            "renameable": true
+        }
+    },
+    "structure": {
+        "builtins": {
+            "NAND": null,
+            "Source": null,
+            "Sink": null,
+            "Reshaper": null
+        },
+        "elementary_gates": {
+            "NOR": null,
+            "OR": null,
+            "NOT": null,
+            "AND": null
+        },
+        "clocks": {
+            "OnOffClock": null,
+            "CLOCK": null
+        },
+        "memory": {
+            "RsNorLatch": null
+        },
+        "AND_8bit": null
+    }
+}

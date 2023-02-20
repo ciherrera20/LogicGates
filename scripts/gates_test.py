@@ -1,11 +1,4 @@
-from Gate import Gate
-from Nand import Nand
-from Source import Source
-from Sink import Sink
-from Reshaper import Reshaper
-from Project import Project
-import json
-from Serialize import ProgramEncoder
+from gates import Project, Nand, Reshaper
 
 if __name__ == '__main__':
     project = Project('test')
@@ -24,15 +17,38 @@ if __name__ == '__main__':
     Clock.tie_output_to((not0, 0), 0)
 
     And = project.define(2, 1, name='AND') 
+    nand0 = Nand()
     nand1 = Nand()
-    nand2 = Nand()
+    And.add_gate(nand0)
     And.add_gate(nand1)
-    And.add_gate(nand2)
-    And.tie_input_to(0, (0, nand1))
-    And.tie_input_to(1, (1, nand1))
-    And.add_connection((nand1, 0), (0, nand2))
-    And.add_connection((nand1, 0), (1, nand2))
-    And.tie_output_to((nand2, 0), 0)
+    And.tie_input_to(0, (0, nand0))
+    And.tie_input_to(1, (1, nand0))
+    And.add_connection((nand0, 0), (0, nand1))
+    And.add_connection((nand0, 0), (1, nand1))
+    And.tie_output_to((nand1, 0), 0)
+
+    Or = project.define(2, 1, name='OR')
+    not0 = Not()
+    not1 = Not()
+    nand0 = Nand()
+    Or.add_gate(not0)
+    Or.add_gate(not1)
+    Or.add_gate(nand0)
+    Or.tie_input_to(0, (0, not0))
+    Or.tie_input_to(1, (0, not1))
+    Or.add_connection((not0, 0), (0, nand0))
+    Or.add_connection((not1, 0), (1, nand0))
+    Or.tie_output_to((nand0, 0), 0)
+
+    Nor = project.define(2, 1, name='NOR')
+    or0 = Or()
+    not0 = Not()
+    Nor.add_gate(or0)
+    Nor.add_gate(not0)
+    Nor.tie_input_to(0, (0, or0))
+    Nor.tie_input_to(1, (1, or0))
+    Nor.add_connection((or0, 0), (0, not0))
+    Nor.tie_output_to((not0, 0), 0)
 
     And_8bit = project.define(2, 1, name='AND_8bit')
     reshaper0 = Reshaper([8, 8], [1]*16)
@@ -91,9 +107,36 @@ if __name__ == '__main__':
 
     OnOffClock = project.define(1, 1, 'OnOffClock')
     clock0 = Clock()
-    and8 = And()
+    and0 = And()
     OnOffClock.add_gate(clock0)
-    OnOffClock.add_gate(and8)
-    OnOffClock.tie_input_to(0, (0, and8))
-    OnOffClock.add_connection((clock0, 0), (1, and8))
-    OnOffClock.tie_output_to((and8, 0), 0)
+    OnOffClock.add_gate(and0)
+    OnOffClock.tie_input_to(0, (0, and0))
+    OnOffClock.add_connection((clock0, 0), (1, and0))
+    OnOffClock.tie_output_to((and0, 0), 0)
+
+    # RsNorLatch = project.define(2, 2, 'RsNorLatch')
+    # nor0 = Nor()
+    # nor1 = Nor()
+    # RsNorLatch.add_gate(nor0)
+    # RsNorLatch.add_gate(nor1)
+    # RsNorLatch.tie_input_to(0, (0, nor0))
+    # RsNorLatch.tie_input_to(1, (0, nor1))
+    # RsNorLatch.add_connection((nor0, 0), (1, nor1))
+    # RsNorLatch.add_connection((nor1, 0), (1, nor0))
+    # RsNorLatch.tie_output_to((nor0, 0), 0)
+    # RsNorLatch.tie_output_to((nor1, 0), 1)
+
+    RsNorLatch = project.define(2, 2, 'RsNorLatch')
+    nor0 = Nor()
+    nor1 = Nor()
+    not0 = Not()
+    RsNorLatch.add_gate(nor0)
+    RsNorLatch.add_gate(nor1)
+    RsNorLatch.add_gate(not0)
+    RsNorLatch.tie_input_to(0, (0, nor0))
+    RsNorLatch.tie_input_to(1, (0, nor1))
+    RsNorLatch.add_connection((nor0, 0), (1, nor1))
+    RsNorLatch.add_connection((nor1, 0), (1, nor0))
+    RsNorLatch.add_connection((nor1, 0), (0, not0))
+    RsNorLatch.tie_output_to((nor1, 0), 1)
+    RsNorLatch.tie_output_to((not0, 0), 0)

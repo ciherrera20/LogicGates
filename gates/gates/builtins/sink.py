@@ -1,4 +1,4 @@
-from Gate import Gate
+from gates.gate import Gate
 
 class Sink(Gate):
     def __init__(self, size):
