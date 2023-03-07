@@ -2,76 +2,90 @@
     "folders": {
         "builtins": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         },
         "elementary_gates": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         },
         "clocks": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         },
         "memory": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         }
     },
     "components": {
         "NAND": {
             "deleteable": false,
-            "renameable": false
+            "renameable": false,
+            "visible": true
         },
         "Source": {
             "deleteable": false,
-            "renameable": false
+            "renameable": false,
+            "visible": false
         },
         "Sink": {
             "deleteable": false,
-            "renameable": false
+            "renameable": false,
+            "visible": false
         },
         "Reshaper": {
             "deleteable": false,
-            "renameable": false
+            "renameable": false,
+            "visible": true
         },
         "NOR": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         },
         "OR": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         },
         "NOT": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         },
         "AND": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         },
         "OnOffClock": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         },
         "CLOCK": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         },
         "RsNorLatch": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         },
-        "AND_8bit": {
+        "AND8bit": {
             "deleteable": true,
-            "renameable": true
+            "renameable": true,
+            "visible": true
         }
     },
     "structure": {
         "builtins": {
             "NAND": null,
-            "Source": null,
-            "Sink": null,
             "Reshaper": null
         },
         "elementary_gates": {
@@ -87,6 +101,6 @@
         "memory": {
             "RsNorLatch": null
         },
-        "AND_8bit": null
+        "AND8bit": null
     }
 }

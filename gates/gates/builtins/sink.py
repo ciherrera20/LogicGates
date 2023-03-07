@@ -1,11 +1,12 @@
 from gates.gate import Gate
+import copy
 
 class Sink(Gate):
-    def __init__(self, size):
-        super().__init__(size, 0, name='Sink')
-    
+    def __init__(self, dims, labels=None):
+        super().__init__(dims, [], input_labels=labels, name='Sink')
+
     def _init_state(self):
-        return [Gate.DEFAULT_VALUE] * self._num_inputs
+        return super()._init_inputs()
 
     def __call__(self, inputs, state=None):
         for i, input in enumerate(inputs):
@@ -13,7 +14,31 @@ class Sink(Gate):
         return None
     
     def serialize(self):
-        return {'size': self._num_inputs}
+        return {'dims': self._input_dims, 'labels': self._input_labels}
 
     def deserialize(obj):
         return Sink(**obj)
+    
+    def _duplicate(self):
+        return Sink(
+            self._input_dims,
+            labels=self._input_labels
+        )
+
+    def _duplicate_state(self, state):
+        return copy.deepcopy(state)
+        # duplicate_state = self._init_state()
+        # for i, output in enumerate(state):
+        #     if self._input_dims[i] == 1:
+        #         duplicate_state[i] = output
+        #     else:
+        #         for j, num in enumerate(output):
+        #             duplicate_state[i][j] = num
+
+    @property
+    def dims(self):
+        return self._input_dims
+
+    @property
+    def labels(self):
+        return self._input_labels

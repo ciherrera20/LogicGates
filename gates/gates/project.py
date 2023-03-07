@@ -1,11 +1,11 @@
 from gates.utils.graph import DirectedGraph
 from gates.utils.serialize import ProgramEncoder
-from gates.builtins import Nand, Reshaper, Sink, Source
+from gates.builtins import Nand, Reshaper, Sink, Source, Datetime
 from gates.gate_definition import GateDefinition
 import json
 
 class Project:
-    BUILTIN_GATES = ['NAND', 'Source', 'Sink', 'Reshaper']
+    BUILTIN_GATES = ['NAND', 'Source', 'Sink', 'Reshaper', 'Datetime']
 
     def __init__(self, name):
         self.name = name
@@ -13,7 +13,8 @@ class Project:
             'NAND': Nand,
             'Source': Source,
             'Sink': Sink,
-            'Reshaper': Reshaper
+            'Reshaper': Reshaper,
+            'Datetime': Datetime
         }
         self._dependency_graph = DirectedGraph()
         for name in self._definitions.keys():
@@ -22,11 +23,11 @@ class Project:
     def get_gate_names(self):
         return self._definitions.keys()
 
-    def define(self, num_inputs, num_outputs, name):
+    def define(self, name, input_dims=[], output_dims=[], input_labels=None, output_labels=None):
         if name in self._definitions:
             raise ValueError('{} already exists'.format(name))
         self._dependency_graph.add_vertex(name)
-        definition = GateDefinition(num_inputs, num_outputs, name, self)
+        definition = GateDefinition(input_dims, output_dims, name, self, input_labels=input_labels, output_labels=output_labels)
         self._definitions[name] = definition
         return definition
 
@@ -99,6 +100,9 @@ class Project:
     def _remove_dependency(self, from_type, to_type):
         self._dependency_graph.remove_edge(from_type, to_type)
     
+    def __getitem__(self, *args, **kwargs):
+        return self._definitions.__getitem__(*args, **kwargs)
+
     def serialize(self):
         definitions = {}
         for name, definition in self._definitions.items():
@@ -111,11 +115,10 @@ class Project:
             'dependency_graph': self._dependency_graph.serialize()
         }
 
-    def deserialize(obj):
+    def deserialize(obj, gates={}):
         project = Project(obj['name'])
         dependency_graph = DirectedGraph.deserialize(obj['dependency_graph'])
         order = dependency_graph.get_order('NAND')[0]
-        gates = {}
         for gate_type in reversed(order):
             if gate_type not in project._definitions:
                 project._dependency_graph.add_vertex(gate_type)

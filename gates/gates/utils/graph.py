@@ -1,4 +1,5 @@
 from collections import deque
+from gates.utils.orderedset import OrderedSet
 import math
 
 class DirectedGraph():
@@ -18,8 +19,8 @@ class DirectedGraph():
         Runtime: O(1)
         '''
         if v not in self._from_dict and v not in self._to_dict:
-            self._from_dict[v] = set()
-            self._to_dict[v] = set()
+            self._from_dict[v] = OrderedSet()
+            self._to_dict[v] = OrderedSet()
     
     def remove_vertex(self, v):
         '''
@@ -43,7 +44,7 @@ class DirectedGraph():
         '''
         # Check whether v is any of w's successors
         stack = deque([w])
-        visited = set()
+        visited = OrderedSet()
         while len(stack) != 0:
             x = stack.pop()
             if x == v:
@@ -100,7 +101,7 @@ class DirectedGraph():
 
         Runtime: O(|V| + |E|)
         '''
-        unvisited = {v for v in self._from_dict}
+        unvisited = OrderedSet([v for v in self._from_dict])
         stack = deque()
         vertex_dict = {}
         index = 0
@@ -136,7 +137,7 @@ class DirectedGraph():
             v_index, v_lowlink, _, _ = vertex_dict[v]
             if v_index == v_lowlink:
                 comp_index = len(sc_components)
-                component = set()
+                component = OrderedSet()
 
                 # Pop from the stack until the popped vertex is the current vertex
                 w = stack.pop()
@@ -180,7 +181,7 @@ class DirectedGraph():
             final order and performs Tarjan's algorithm on
             the graph formed by the remaining vertices.
         '''
-        order, cut_vertices = [], set()
+        order, cut_vertices = [], OrderedSet()
         shortest_paths = self.get_shortest_paths(source)
         for component in self.get_strongly_connected_components():
             if len(component) == 1:
@@ -217,13 +218,13 @@ class DirectedGraph():
         '''
         Get the direct successors of v
         '''
-        return {w for w in self._from_dict[v]}
+        return OrderedSet([w for w in self._from_dict[v]])
     
     def get_direct_predecessors(self, v):
         '''
         Get the direct predecessors of v
         '''
-        return {w for w in self._to_dict[v]}
+        return OrderedSet([w for w in self._to_dict[v]])
 
     def serialize(self):
         return self._from_dict

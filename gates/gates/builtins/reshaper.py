@@ -1,24 +1,10 @@
 from gates.gate import Gate
 
 class Reshaper(Gate):
-    def __init__(self, input_dims, output_dims):
+    def __init__(self, input_dims, output_dims, input_labels=None, output_labels=None):
         if sum(input_dims) != sum(output_dims):
             raise ValueError('Mismatched input and output dimensions')
-        self._input_dims = input_dims
-        self._output_dims = output_dims
-        super().__init__(len(input_dims), len(output_dims), name='Reshaper')
-
-    def _init_inputs(self):
-        inputs = []
-        for input_dim in self._input_dims:
-            if input_dim == 1:
-                inputs.append(Gate.DEFAULT_VALUE)
-            else:
-                inputs.append([Gate.DEFAULT_VALUE] * input_dim)
-        return inputs
-
-    def _init_state(self):
-        return None
+        super().__init__(input_dims, output_dims, input_labels, output_labels, name='Reshaper')
 
     def __call__(self, inputs, state=None):
         flattened_inputs = []
@@ -40,7 +26,23 @@ class Reshaper(Gate):
         return outputs
 
     def serialize(self):
-        return {'input_dims': self._input_dims, 'output_dims': self._output_dims}
+        return {
+            'input_dims': self._input_dims,
+            'output_dims': self._output_dims,
+            'input_labels': self._input_labels,
+            'output_labels': self._output_labels
+        }
     
     def deserialize(obj):
         return Reshaper(**obj)
+    
+    def _duplicate(self):
+        return Reshaper(
+            self._input_dims,
+            self._output_dims,
+            input_labels=self._input_labels,
+            output_labels=self._output_labels
+        )
+
+    def _duplicate_state(self, state):
+        return None
