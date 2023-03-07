@@ -16,6 +16,28 @@ def transform_dims(dims):
 def sum_dims(dims):
     return reduce(lambda acc, x: acc + x, transform_dims(dims), 0)
 
+class ReshaperDialog(simpledialog.Dialog):
+    def __init__(self, parent, *args, **kwargs):
+        self.input_dims = None
+        self.output_dims = None
+        super().__init__(parent, 'New Reshaper', *args, **kwargs)
+
+    def body(self, master):
+        tk.Label(master, text="Input dimensions:").grid(row=0)
+        tk.Label(master, text="Output dimensions:").grid(row=1)
+
+        self.e1 = tk.Entry(master)
+        self.e2 = tk.Entry(master)
+
+        self.e1.grid(row=0, column=1)
+        self.e2.grid(row=1, column=1)
+        return self.e1 # initial focus
+
+    def apply(self):
+        self.input_dims = self.e1.get()
+        self.output_dims = self.e2.get()
+        self.destroy()
+
 class Workspace(tk.Canvas):
     ON = '#0099ff'
     OFF = 'white'
@@ -88,11 +110,32 @@ class Workspace(tk.Canvas):
     def add_gate_type(self, name):
         try:
             if name == 'Reshaper':
-                input_dims = simpledialog.askstring('Inputs', 'Enter dimensions of inputs as integers separated by commas')
-                output_dims = simpledialog.askstring('Outputs', 'Enter dimensions of outputs as integers separated by commas')
-                input_dims = [int(dim) for dim in input_dims.split(',')]
-                output_dims = [int(dim) for dim in output_dims.split(',')]
+                rdialog = ReshaperDialog(self)
+                input_dims, output_dims = rdialog.input_dims, rdialog.output_dims
+
+                # Handle cancel
+                if input_dims is None or output_dims is None:
+                    return
+
+                # Convert to lists of dimensions
+                if input_dims == '':
+                    input_dims = []
+                else:
+                    input_dims = [int(dim) for dim in input_dims.split(',')]
+                if output_dims == '':
+                    output_dims = []
+                else:
+                    output_dims = [int(dim) for dim in output_dims.split(',')]
                 args = [input_dims, output_dims]
+            elif name == 'Source' or name == 'Sink':
+                dim_str = simpledialog.askstring(f'New {name}', 'Enter dimensions')
+                if dim_str is None:
+                    return
+                if dim_str == '':
+                    dims = []
+                else:
+                    dims = [int(dim) for dim in dim_str.split(',')]
+                args=[dims]
             else:
                 args = []
             gate = self._project[name](*args)
@@ -331,13 +374,14 @@ class Workspace(tk.Canvas):
     def set_right_clicked_label(self):
         tags = self._right_click_tags
         label = simpledialog.askstring('Label', 'Enter label')
-        if int(tags[1]) == self._definition.source.uid:
-            self._definition.rename_input(int(tags[3]), label)
-            self.update_component(self._definition.source)
-        else:
-            self._definition.rename_output(int(tags[3]), label)
-            self.update_component(self._definition.sink)
-        self._project_frame.update_gate_type(self._definition.name)
+        if label is not None:
+            if int(tags[1]) == self._definition.source.uid:
+                self._definition.rename_input(int(tags[3]), label)
+                self.update_component(self._definition.source)
+            else:
+                self._definition.rename_output(int(tags[3]), label)
+                self.update_component(self._definition.sink)
+            self._project_frame.update_gate_type(self._definition.name)
 
     def duplicate_right_clicked_gate(self):
         tags = self._right_click_tags
@@ -479,12 +523,15 @@ class Workspace(tk.Canvas):
         tag = f'gate:{gate.uid}'
 
         # Create component name
-
+        if gate == self._definition.source or gate == self._definition.sink:
+            text = f'{self._definition.name}'
+        else:
+            text = gate.name
         text_id = self.create_text(
             0, 0,
             fill='black',
             font=f'Courier {name_size}',
-            text=gate.name,
+            text=text,
             tags=get_tags(f'{tag}:name')
         )
 
@@ -796,6 +843,8 @@ class Workspace(tk.Canvas):
 
     def rename(self, new_name):
         self.itemconfigure(self._title, text=new_name)
+        self.update_component(self._definition.source)
+        self.update_component(self._definition.sink)
     
     def update_gate_type(self, gate_type):
         for gate in self._definition.gates.values():

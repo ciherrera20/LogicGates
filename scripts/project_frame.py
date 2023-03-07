@@ -19,14 +19,19 @@ class ProjectFrame(tk.Frame):
 
         # Create the TPS controls
         self._tps_var = tk.IntVar()
+        # Increment tps button
         self._increment_tps_button = tk.Button(self._topbar, text=">", command=self._increment_tps)
         self._increment_tps_button.pack(side=tk.RIGHT)
+        # Tps slider
         self._tps_scale = tk.Scale(self._topbar, from_=0, to=100, var=self._tps_var, showvalue=0, orient=tk.HORIZONTAL, command=self._tps_change)
         self._tps_scale.pack(side=tk.RIGHT)
+        # Decrement tps button
         self._decrement_tps_button = tk.Button(self._topbar, text="<", command=self._decrement_tps)
         self._decrement_tps_button.pack(side=tk.RIGHT)
+        # Display tps
         self._tps_label = tk.Label(self._topbar, text='TPS: 0')
         self._tps_label.pack(side=tk.RIGHT)
+        # Step tps
         self._tps_step = tk.Button(self._topbar, text="Step", command=self.tick)
         self._tps_step.pack(side=tk.RIGHT)
 
@@ -43,19 +48,19 @@ class ProjectFrame(tk.Frame):
         self._tree.pack(padx=5, pady=5, side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
         # Button to create a new component
-        self._new_component = ttk.Button(self._sidebar, text="New component", command=self._tree.new_component)
+        self._new_component = tk.Button(self._sidebar, text="New component", command=self._tree.new_component)
         self._new_component.pack(padx=5, pady=5, side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Button to create a new folder
-        self._new_folder = ttk.Button(self._sidebar, text="New folder", command=self._tree.new_folder)
+        self._new_folder = tk.Button(self._sidebar, text="New folder", command=self._tree.new_folder)
         self._new_folder.pack(padx=5, pady=5, side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Button to delete a component or folder
-        self._delete = ttk.Button(self._sidebar, text="Delete", command=self._tree.delete_selected)
+        self._delete = tk.Button(self._sidebar, text="Delete", command=self._tree.delete_selected)
         self._delete.pack(padx=5, pady=5, side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Button to add an instance of the selected component to the current workspace
-        self._add_instance = ttk.Button(self._sidebar, text="Add instance", command=self.add_selected_gate)
+        self._add_instance = tk.Button(self._sidebar, text="Add instance", command=self.add_selected_gate)
         self._add_instance.pack(padx=5, pady=5, side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Frame to hold workspaces widget
