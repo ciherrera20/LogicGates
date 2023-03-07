@@ -19,11 +19,16 @@ class ProjectFrame(tk.Frame):
 
         # Create the TPS controls
         self._tps_var = tk.IntVar()
-        # self._increment_tps = ttk.Button(self._topbar, )
-        self._tps_scale = tk.Scale(self._topbar, from_=0, to=1000, var=self._tps_var, showvalue=0, orient=tk.HORIZONTAL, command=self._tps_change)
+        self._increment_tps_button = tk.Button(self._topbar, text=">", command=self._increment_tps)
+        self._increment_tps_button.pack(side=tk.RIGHT)
+        self._tps_scale = tk.Scale(self._topbar, from_=0, to=100, var=self._tps_var, showvalue=0, orient=tk.HORIZONTAL, command=self._tps_change)
         self._tps_scale.pack(side=tk.RIGHT)
-        self._tps_label = ttk.Label(self._topbar, text='TPS: 0')
+        self._decrement_tps_button = tk.Button(self._topbar, text="<", command=self._decrement_tps)
+        self._decrement_tps_button.pack(side=tk.RIGHT)
+        self._tps_label = tk.Label(self._topbar, text='TPS: 0')
         self._tps_label.pack(side=tk.RIGHT)
+        self._tps_step = tk.Button(self._topbar, text="Step", command=self.tick)
+        self._tps_step.pack(side=tk.RIGHT)
 
         # Create sidebar that holds the project directory and buttons to manipulate it
         self._sidebar = tk.Frame(self, background='red')
@@ -121,7 +126,8 @@ class ProjectFrame(tk.Frame):
         return {
             'project': self._project.serialize(),
             'directory': self._tree.serialize(),
-            'workspaces': workspaces
+            'workspaces': workspaces,
+            'tps': self._tps_var.get()
         }
 
     def deserialize(obj, master):
@@ -139,19 +145,30 @@ class ProjectFrame(tk.Frame):
                     ws[uid] = (x, y)
             ws_obj[name] = ws
 
-        return ProjectFrame(
+        pframe = ProjectFrame(
             master,
             project,
             dir_obj = obj['directory'],
             ws_obj = ws_obj
         )
+        pframe._tps_var.set(obj.get('tps', 20))
+        pframe._tps_change()
+        return pframe
 
     def tick(self):
         if self._current_workspace is not None:
             self._current_workspace.tick()
     
-    def _tps_change(self, e):
+    def _tps_change(self, e=None):
         self._tps_label.config(text=f'TPS: {self._tps_var.get()}')
+    
+    def _increment_tps(self):
+        self._tps_var.set(self._tps_var.get() + 1)
+        self._tps_change()
+    
+    def _decrement_tps(self):
+        self._tps_var.set(self._tps_var.get() - 1)
+        self._tps_change()
 
     def loop(self):
         tps = self._tps_var.get()

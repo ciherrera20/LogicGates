@@ -123,18 +123,6 @@ if __name__ == '__main__':
     # OnOffClock.add_connection((clock0, 0), (1, and0))
     # OnOffClock.tie_output_to((and0, 0), 0)
 
-    # # RsNorLatch = project.define(2, 2, 'RsNorLatch')
-    # # nor0 = Nor()
-    # # nor1 = Nor()
-    # # RsNorLatch.add_gate(nor0)
-    # # RsNorLatch.add_gate(nor1)
-    # # RsNorLatch.tie_input_to(0, (0, nor0))
-    # # RsNorLatch.tie_input_to(1, (0, nor1))
-    # # RsNorLatch.add_connection((nor0, 0), (1, nor1))
-    # # RsNorLatch.add_connection((nor1, 0), (1, nor0))
-    # # RsNorLatch.tie_output_to((nor0, 0), 0)
-    # # RsNorLatch.tie_output_to((nor1, 0), 1)
-
     # RsNorLatch = project.define('RsNorLatch', [1, 1], [1, 1])
     # nor0 = Nor()
     # nor1 = Nor()

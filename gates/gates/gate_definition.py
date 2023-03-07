@@ -94,7 +94,7 @@ class GateDefinition:
             if self._project._check_dependency(self._name, gate._name):
                 raise ValueError('Recursive definition: {} depends on {}'.format(gate._name, self._name))
             self._project._add_dependency(self._name, gate._name)
-            self._gate_types[gate._name] = {gate._uid}
+            self._gate_types[gate._name] = OrderedSet([gate._uid])
         else:
             self._gate_types[gate._name].add(gate._uid)
         self._reorder = True

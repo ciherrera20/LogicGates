@@ -4,6 +4,8 @@ entry has an index that can be looked up. It can also act like a Sequence.
 
 Based on a recipe originally posted to ActiveState Recipes by Raymond Hettiger,
 and released under the MIT license.
+
+https://github.com/rspeer/ordered-set
 """
 import itertools as it
 from typing import (
