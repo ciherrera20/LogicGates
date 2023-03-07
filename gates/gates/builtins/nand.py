@@ -5,7 +5,7 @@ class Nand(Gate):
         super().__init__((1, 1), (1,), name='NAND')
 
     def __call__(self, inputs, state=None):
-        if type(inputs[0]) != int or type(inputs[0]) != int:
+        if type(inputs[0]) != int or type(inputs[1]) != int:
             return [None]
         else:
             return [int(not (inputs[0] and inputs[1]))]

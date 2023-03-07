@@ -1,4 +1,5 @@
 from gates.gate import Gate
+import copy
 
 class Reshaper(Gate):
     def __init__(self, input_dims, output_dims, input_labels=None, output_labels=None):
@@ -8,11 +9,14 @@ class Reshaper(Gate):
 
     def __call__(self, inputs, state=None):
         flattened_inputs = []
-        for i, input in enumerate(inputs):
-            if self._input_dims[i] == 1:
+        for input, dim in zip(inputs, self._input_dims):
+            if dim == 1:
                 flattened_inputs.append(input)
             else:
-                flattened_inputs += input
+                if input is not None:
+                    flattened_inputs += input
+                else:
+                    flattened_inputs += [None] * dim
 
         i = 0
         outputs = []
@@ -38,10 +42,10 @@ class Reshaper(Gate):
     
     def _duplicate(self):
         return Reshaper(
-            self._input_dims,
-            self._output_dims,
-            input_labels=self._input_labels,
-            output_labels=self._output_labels
+            copy.deepcopy(self._input_dims),
+            copy.deepcopy(self._output_dims),
+            input_labels=copy.deepcopy(self._input_labels),
+            output_labels=copy.deepcopy(self._output_labels)
         )
 
     def _duplicate_state(self, state):

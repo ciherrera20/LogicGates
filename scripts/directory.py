@@ -107,9 +107,11 @@ class Directory(ttk.Treeview):
                 iid = self.insert(parent, tk.END, text=name, image=self._component_icon)
             else:
                 iid = self.insert(parent, tk.END, text=name)
+
             # Make invisible
             if not visible:
                 self.detach(iid)
+
             # Save
             self._components[name] = iid
             self._component_rows[iid] = name
@@ -253,7 +255,7 @@ class Directory(ttk.Treeview):
                     helper(iid, children)
         helper('', obj['structure'])
 
-        # Add built in gates if necessary
+        # # Add built in gates if necessary
         # if 'builtins' in tree._folders:
         #     builtins_folder = tree._folders['builtins']
         # else:
@@ -302,17 +304,12 @@ class Directory(ttk.Treeview):
 
         # Show the appropriate popup menu
         if self.is_component(row):
-            try:
-                self._component_popup.tk_popup(e.x_root, e.y_root, 0)
-            finally:
-                self._component_popup.grab_release()
+            popup = self._component_popup
         elif self.is_folder(row):
-            try:
-                self._folder_popup.tk_popup(e.x_root, e.y_root, 0)
-            finally:
-                self._folder_popup.grab_release()
+            popup = self._folder_popup
         else:
-            try:
-                self._other_popup.tk_popup(e.x_root, e.y_root, 0)
-            finally:
-                self._other_popup.grab_release()
+            popup = self._other_popup
+        try:
+            popup.tk_popup(e.x_root, e.y_root, 0)
+        finally:
+            popup.grab_release()

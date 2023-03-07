@@ -25,19 +25,12 @@ class Source(Gate):
 
     def _duplicate(self):
         return Source(
-            self._input_dims,
-            labels=self._input_labels
+            copy.deepcopy(self._input_dims),
+            labels=copy.deepcopy(self._input_labels)
         )
 
     def _duplicate_state(self, state):
-        return copy.deepcopy(state)
-        # duplicate_state = self._init_state()
-        # for i, input in enumerate(state):
-        #     if self._output_dims[i] == 1:
-        #         duplicate_state[i] = input
-        #     else:
-        #         for j, num in enumerate(input):
-        #             duplicate_state[i][j] = num
+        return None
 
     @property
     def dims(self):

@@ -109,6 +109,7 @@ class ProjectFrame(tk.Frame):
         if self._current_workspace == self._workspaces[name]:
             self.hide_workspace()
         del self._workspaces[name]
+        self.remove_decoupled_components()
     
     def rename_workspace(self, name, new_name):
         ws = self._workspaces[name]
@@ -120,6 +121,10 @@ class ProjectFrame(tk.Frame):
     def update_gate_type(self, gate_name):
         for ws in self._workspaces.values():
             ws.update_gate_type(gate_name)
+    
+    def remove_decoupled_components(self):
+        for ws in self._workspaces.values():
+            ws.remove_decoupled_components()
 
     def add_selected_gate(self):
         row_id = self._tree.focus()

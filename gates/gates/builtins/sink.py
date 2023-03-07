@@ -21,19 +21,12 @@ class Sink(Gate):
     
     def _duplicate(self):
         return Sink(
-            self._input_dims,
-            labels=self._input_labels
+            copy.deepcopy(self._input_dims),
+            labels=copy.deepcopy(self._input_labels)
         )
 
     def _duplicate_state(self, state):
         return copy.deepcopy(state)
-        # duplicate_state = self._init_state()
-        # for i, output in enumerate(state):
-        #     if self._input_dims[i] == 1:
-        #         duplicate_state[i] = output
-        #     else:
-        #         for j, num in enumerate(output):
-        #             duplicate_state[i][j] = num
 
     @property
     def dims(self):

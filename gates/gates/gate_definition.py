@@ -621,7 +621,6 @@ class GateDefinition:
             state = {}
 
         # Evaluate each gate to compute the final output
-        # outputs = None
         outputs = {self._source._uid: inputs}
         for gate_uid in self._order:
             # Skip over the rest of the code for the source since we don't need to do any computation for it
@@ -640,7 +639,9 @@ class GateDefinition:
                     elif predecessor_uid in state:
                         gate_inputs[input_idx] = state[predecessor_uid][1][output_idx]
                     else:
-                        raise ValueError(f'Invalid state in {self._name}, could not find gate {predecessor_uid}')
+                        gate_inputs[input_idx] = None
+                        # print(f'Invalid state in {self._name}, could not find gate {predecessor_uid}')
+                        # raise ValueError(f'Invalid state in {self._name}, could not find gate {predecessor_uid}')
 
             # Save outputs
             if gate_uid == self._sink._uid:
@@ -698,7 +699,11 @@ class GateDefinition:
         obj = {}
         for key, value in state.items():
             if type(key) == int:
-                obj[key] = (self._gates[key].serialize_state(value[0]), value[1])
+                # Handle invalid states
+                if key in self._gates:
+                    obj[key] = (self._gates[key].serialize_state(value[0]), value[1])
+                else:
+                    obj[key] = (None, value[1])
             else:
                 obj[key] = value
         return obj
@@ -725,9 +730,12 @@ class GateDefinition:
 
         state = {}
         for gate_uid, (gate_state, gate_outputs) in obj.items():
-            gate = self._gates[gate_uid]
-            definition = self._project._definitions[gate._name]
-            state[gate_uid] = definition.deserialize_state(gate_state), gate_outputs
+            if gate_uid in self._gates:
+                gate = self._gates[gate_uid]
+                definition = self._project._definitions[gate._name]
+                state[gate_uid] = (definition.deserialize_state(gate_state), gate_outputs)
+            else:
+                state[gate_uid] = (gate_state, gate_outputs)
         return state
 
     @hybridmethod
@@ -783,7 +791,13 @@ class GateDefinition:
                         stack.append((value[0], new_value[0]))
                     else:
                         new_value = value
-                    new_state[gates[key]._uid] = new_value
+
+                    # Handle invalid states
+                    if key in gates:
+                        new_state[gates[key]._uid] = new_value
+                    else:
+                        # Um, this may cause a lot of bugs later
+                        new_state[str(key)] = new_value
                 else:
                     new_state[key] = value
 
@@ -943,7 +957,7 @@ class GateDefinition:
         if gate == self._source:
             self._state['inputs'] = gate_state
         elif gate == self._sink:
-            self._state['output'] = gate_state
+            self._state['outputs'] = gate_state
         else:
             self._state[gate._uid] = (gate_state, gate(gate._init_inputs(), gate_state))
     

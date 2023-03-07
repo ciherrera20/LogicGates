@@ -1,11 +1,11 @@
 from gates.utils.graph import DirectedGraph
 from gates.utils.serialize import ProgramEncoder
-from gates.builtins import Nand, Reshaper, Sink, Source, Datetime
+from gates.builtins import Nand, Reshaper, Sink, Source, Datetime, Constant
 from gates.gate_definition import GateDefinition
 import json
 
 class Project:
-    BUILTIN_GATES = ['NAND', 'Source', 'Sink', 'Reshaper', 'Datetime']
+    BUILTIN_GATES = ['NAND', 'Source', 'Sink', 'Reshaper', 'Datetime', 'Constant']
 
     def __init__(self, name):
         self.name = name
@@ -14,7 +14,8 @@ class Project:
             'Source': Source,
             'Sink': Sink,
             'Reshaper': Reshaper,
-            'Datetime': Datetime
+            'Datetime': Datetime,
+            'Constant': Constant
         }
         self._dependency_graph = DirectedGraph()
         for name in self._definitions.keys():

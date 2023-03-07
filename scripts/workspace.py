@@ -41,6 +41,7 @@ class ReshaperDialog(simpledialog.Dialog):
 class Workspace(tk.Canvas):
     ON = '#0099ff'
     OFF = 'white'
+    ERROR = 'red'
     CIRCLERAD = 10
 
     def __init__(self, master, definition, project_frame, obj={}, **kwargs):
@@ -70,6 +71,7 @@ class Workspace(tk.Canvas):
 
         # Store the index of the selected input
         self._selected_input = None
+        self._toggled_to = None
 
         # Store tags when right clicking
         self._right_click_tags = None
@@ -135,7 +137,13 @@ class Workspace(tk.Canvas):
                     dims = []
                 else:
                     dims = [int(dim) for dim in dim_str.split(',')]
-                args=[dims]
+                args = [dims]
+            elif name == 'Constant':
+                dim_str = simpledialog.askstring(f'New Constant', 'Enter dimension')
+                if dim_str is None or dim_str == '':
+                    return
+                dim = int(dim_str)
+                args = [dim]
             else:
                 args = []
             gate = self._project[name](*args)
@@ -160,6 +168,7 @@ class Workspace(tk.Canvas):
         self._selected_gate = None
         self._selection_offset = None
         self._selected_input = None
+        self._toggled_to = None
 
         # Clicking on a gate
         if len(tags) != 0 and tags[0] == 'gate':
@@ -193,22 +202,24 @@ class Workspace(tk.Canvas):
                 connection_tag = f'virtualconnection:{self._selected_gate.uid}:{self._selected_input}'
                 output = [0] * self._selected_gate.input_dims[self._selected_input]
                 self._create_connection_lines(output_bbox, input_bbox, output, connection_tag)
-
             elif tags[2] == 'toggle':
-                self._toggle(self._selected_gate, int(tags[3]), int(tags[4]))
+                self._toggled_to = self._toggle(self._selected_gate, int(tags[3]), int(tags[4]))
             else:
                 center = Bbox(self.bbox(tag)).center
                 self._selection_offset = (center[0] - e.x, center[1] - e.y)
     
     def _get_state(self, gate, i, j):
-        state = self._definition.get_gate_state(gate.uid)
+        if gate.name == 'Constant':
+            state = gate.get_state()
+        else:
+            state = self._definition.get_gate_state(gate.uid)
         if gate.output_dims[i] == 1:
             return state[i]
         else:
             return state[i][j]
 
     def _set_state(self, gate, i, j, num, update_def=True):
-        if gate.name == 'Source':
+        if gate.name == 'Source' or gate.name == 'Constant':
             s = 'toggle'
         else:
             s = 'display'
@@ -228,16 +239,28 @@ class Workspace(tk.Canvas):
         
         # Update gate state
         if update_def:
-            state = self._definition.get_gate_state(gate.uid)
+            # Retrieve the state
+            if gate.name == 'Constant':
+                state = gate.get_state()
+            else:
+                state = self._definition.get_gate_state(gate.uid)
+
+            # Update the state
             if gate.dims[i] == 1:
                 state[i] = num
             else:
                 state[i][j] = num
-            self._definition.set_gate_state(gate.uid, state)
+            
+            # Set the new state
+            if gate.name == 'Constant':
+                gate.set_state(state)
+            else:
+                self._definition.set_gate_state(gate.uid, state)
 
     def _toggle(self, gate, i, j):
         num = self._get_state(gate, i, j)
         self._set_state(gate, i, j, abs(num - 1))
+        return abs(num - 1)
 
     def _on_left_move(self, e):
         if self._selected_gate is not None:
@@ -258,25 +281,22 @@ class Workspace(tk.Canvas):
                     x_off = x2 - input_bbox.xc
                     self.coords(line_id, e.x + x_off, e.y, x2, y2)
             # Check for state updates
-            else:
-                pass
+            elif self._toggled_to is not None:
+                # Find closest item that is not a line
+                tags = self._get_closest_tags(e.x, e.y)
+                if len(tags) != 0 and tags[0] == 'gate':
+                    if tags[-1] == 'current':
+                        tags = tags[-2].split(':')
+                    else:
+                        tags = tags[-1].split(':')
+                    
+                    # We are over the selected gate
+                    if int(tags[1]) == self._selected_gate.uid and tags[2] == 'toggle':
+                        self._set_state(self._selected_gate, int(tags[3]), int(tags[4]), self._toggled_to)
 
     def _on_left_release(self, e):
         # Find closest item that is not a line
-        ids = []
-        for id in self.find_overlapping(e.x, e.y, e.x, e.y):
-            if self.type(id) != 'line':
-                ids.append(id)
-        if len(ids) == 0:
-            id = None
-        else:
-            id = ids[-1]
-
-        # Make sure the item contains the point that was clicked
-        if id is not None and Bbox(self.bbox(id)).contains(e.x, e.y):
-            tags = self.gettags(id)
-        else:
-            tags = []
+        tags = self._get_closest_tags(e.x, e.y)
         
         # Clicking on a gate
         if len(tags) != 0 and tags[0] == 'gate':
@@ -306,7 +326,26 @@ class Workspace(tk.Canvas):
         self._selected_gate = None
         self._selection_offset = None
         self._selected_input = None
+        self._toggled_to = None
     
+    def _get_closest_tags(self, x, y):
+        # Find closest item that is not a line
+        ids = []
+        for id in self.find_overlapping(x, y, x, y):
+            if self.type(id) != 'line':
+                ids.append(id)
+        if len(ids) == 0:
+            id = None
+        else:
+            id = ids[-1]
+
+        # Make sure the item contains the point that was clicked
+        if id is not None and Bbox(self.bbox(id)).contains(x, y):
+            tags = self.gettags(id)
+        else:
+            tags = []
+        return tags
+
     def _on_right_click(self, e):
         # Find closest item that is not a line
         ids = []
@@ -366,7 +405,7 @@ class Workspace(tk.Canvas):
             state = self._definition.get_gate_state(uid)
 
             for i, output in enumerate(state):
-                if type(output) == int:
+                if output is None or type(output) == int:
                     output = [output]
                 for j, num in enumerate(output):
                     self._set_state(source, i, j, num)
@@ -523,36 +562,44 @@ class Workspace(tk.Canvas):
         tag = f'gate:{gate.uid}'
 
         # Create component name
-        if gate == self._definition.source or gate == self._definition.sink:
-            text = f'{self._definition.name}'
+        if gate.name == 'Constant':
+            text_bbox = Bbox(0, 0)
         else:
-            text = gate.name
-        text_id = self.create_text(
-            0, 0,
-            fill='black',
-            font=f'Courier {name_size}',
-            text=text,
-            tags=get_tags(f'{tag}:name')
-        )
+            if gate == self._definition.source or gate == self._definition.sink:
+                text = f'{self._definition.name}'
+            else:
+                text = gate.name
+            text_id = self.create_text(
+                0, 0,
+                fill='black',
+                font=f'Courier {name_size}',
+                text=text,
+                tags=get_tags(f'{tag}:name')
+            )
+            text_bbox = Bbox(self.bbox(text_id)).pad(0, 3)
 
         # Create component interior bbox
-        if gate.name != 'Source' and gate.name != 'Sink':
-            center_bbox = Bbox(self.bbox(text_id)).pad(0, 3)
-        else:
-            text_bbox = Bbox(self.bbox(text_id)).pad(0, 3)
+        if gate.name == 'Source' or gate.name == 'Sink' or gate.name == 'Constant':
+            # Create bbox for the state
             if len(gate.dims) == 0:
                 state_bbox = Bbox(0, 0)
             else:
                 state_bbox = Bbox(circlerad * 2 * sum_dims(gate.dims), circlerad * 2).pad(0, 3)
+
+            # Move the state depending on the text
             if gate.name == 'Source':
                 state_bbox -= (0, text_bbox.hheight + state_bbox.hheight)
-            else:
+            elif gate.name == 'Sink':
                 state_bbox += (0, text_bbox.hheight + state_bbox.hheight)
+            
+            # Create center bbox
             center_bbox = Bbox(
                 (0, (text_bbox.yc + state_bbox.yc) / 2),
                 max(text_bbox.width, state_bbox.width),
                 text_bbox.height + state_bbox.height
             )
+        else:
+            center_bbox = Bbox(self.bbox(text_id)).pad(0, 3)
 
         # Calculate input and output bounding boxes
         inputs_bbox = Bbox(circlerad * 2 * sum_dims(gate.input_dims), circlerad * 2)
@@ -571,17 +618,21 @@ class Workspace(tk.Canvas):
         rrec = self.create_round_rectangle(*gate_bbox, circlerad, fill='white', width=3, tags=get_tags(f'{tag}:body'))
 
         # Reorder text
-        self.tag_lower(rrec, text_id)
+        if gate.name != 'Constant':
+            self.tag_lower(rrec, text_id)
 
-        if gate.name == 'Source' or gate.name == 'Sink':
-            if gate.name == 'Source':
+        if gate.name == 'Source' or gate.name == 'Sink' or gate.name == 'Constant':
+            if gate.name == 'Source' or gate.name == 'Constant':
                 s = 'toggle'
             else:
                 s = 'display'
 
             # Create boxes to hold the state
             dims = transform_dims(gate.dims)
-            state = self._definition.get_gate_state(gate.uid)
+            if gate.name == 'Constant':
+                state = gate.get_state()
+            else:
+                state = self._definition.get_gate_state(gate.uid)
             for i, (rdim, dim, acc_dim) in enumerate(zip(gate.dims, dims, accumulate(dims))):
                 dbbox = Bbox(circlerad * 2, circlerad * 2).scalex(dim) +\
                         (state_bbox.x1 + 2 * circlerad * (acc_dim - dim) + circlerad * dim, state_bbox.yc)
@@ -645,11 +696,15 @@ class Workspace(tk.Canvas):
                 # Get current value of input/output
                 if type(curr_io) == int:
                     num = curr_io
+                elif curr_io is None:
+                    num = None
                 else:
                     num = max(curr_io)
                 
                 # Get color for input/output
-                if num == 1:
+                if num is None:
+                    color = Workspace.ERROR
+                elif num == 1:
                     color = Workspace.ON
                 else:
                     color = 'black'
@@ -729,11 +784,11 @@ class Workspace(tk.Canvas):
         return connection_tag
 
     def _create_connection_lines(self, output_bbox, input_bbox, output, connection_tag):
-        p1 = (output_bbox.x1, output_bbox.y1)
+        p1 = (output_bbox.x1, output_bbox.y1 + 1)
         p2 = (input_bbox.x1, input_bbox.y2 - 1)
 
         # Make output enumerable
-        if type(output) == int:
+        if output is None or type(output) == int:
             output = [output]
 
         # Create line for each output
@@ -749,11 +804,12 @@ class Workspace(tk.Canvas):
             off = i * width + (width + diff) / 2
 
             # Create line
-            self.create_line(
+            line_id = self.create_line(
                 p1[0] + off, p1[1], p2[0] + off, p2[1],
                 fill=color,
                 tags=get_tags(f'{connection_tag}:{i}')
             )
+            self.tag_raise(line_id, self._title)
         return connection_tag
 
     def move_component_to(self, gate, x, y, force=False):
@@ -799,11 +855,16 @@ class Workspace(tk.Canvas):
 
                     # Get current value of input/output
                     if type(curr_io) == int:
-                        curr_io = [curr_io]
-                    num = max(curr_io)
+                        num = curr_io
+                    elif curr_io is None:
+                        num = None
+                    else:
+                        num = max(curr_io)
                     
                     # Get color for input/output
-                    if num == 1:
+                    if num is None:
+                        color = Workspace.ERROR
+                    elif num == 1:
                         color = Workspace.ON
                     else:
                         color = 'black'
@@ -829,7 +890,7 @@ class Workspace(tk.Canvas):
         for (from_uid, to_uid), pairs in self._definition.connections.items():
             for output_idx, input_idx in pairs:
                 output = outputs_dict[from_uid][output_idx]
-                if type(output) == int:
+                if output is None or type(output) == int:
                     output = [output]
                 for j, num in enumerate(output):
                     # Get color for line
@@ -850,6 +911,29 @@ class Workspace(tk.Canvas):
         for gate in self._definition.gates.values():
             if gate.name == gate_type:
                 self.update_component(gate)
+
+    def remove_decoupled_components(self):
+        removed = set()
+        for uid, tag in self._components.items():
+            if uid not in self._definition.gates:
+                self.delete(tag)
+                self.delete(f'connection:{uid}')
+                self.delete(f'virtualconnection:{uid}')
+
+                # Remove input connections
+                line_ids = self.find_withtag('connection')
+                for line_id in line_ids:
+                    tags = self.gettags(line_id)
+                    if tags[-1] == 'current':
+                        tags = tags[-2].split(':')
+                    else:
+                        tags = tags[-1].split(':')
+                    if int(tags[2]) == uid:
+                        self.delete(line_id)
+
+                removed.add(uid)
+        for uid in removed:
+            del self._components[uid]
 
     def serialize(self):
         obj = {}
