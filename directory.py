@@ -26,8 +26,8 @@ class Directory(ttk.Treeview):
         self._other_popup.add_command(label='New folder', command=self.new_folder)
 
         # Get icons
-        folder_icon_dir = '../assets/folder.png'
-        component_icon_dir = '../assets/comp.png'
+        folder_icon_dir = './assets/folder.png'
+        component_icon_dir = './assets/comp.png'
         self._folder_icon = ImageTk.PhotoImage(Image.open(folder_icon_dir).resize((15, 15)))
         self._component_icon = ImageTk.PhotoImage(Image.open(component_icon_dir).resize((15, 15)))
 

@@ -12,11 +12,10 @@ import shutil
 # ctypes.windll.shcore.SetProcessDpiAwareness(1)
 
 # TODOs:
-# TODO keep track of which gates in a definition are connected to the output and save only those states
 # TODO when modifying a gate definition, change the saved gate states to reflect it
 
 # Known bugs:
-# If a definition changes its number of inputs or outputs, particularly by inserting one, and another definition had a connection to the old input or output, the connection does not update leading to possible mismatched dimensions
+# None atm
 
 class App(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -24,7 +23,7 @@ class App(tk.Tk):
         screenwidth = self.winfo_screenwidth()
         screenheight = self.winfo_screenheight()
         self.title('Logic Gates')
-        self.iconbitmap('../assets/comp.ico')
+        self.iconbitmap('./assets/comp.ico')
         self.state('zoomed')
         self.minsize(int(screenwidth * 0.5), int(screenheight * 0.5))
 
