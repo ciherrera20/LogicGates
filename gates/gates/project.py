@@ -5,17 +5,17 @@ from gates.gate_definition import GateDefinition
 import json
 
 class Project:
-    BUILTIN_GATES = ['NAND', 'Source', 'Sink', 'Reshaper', 'Datetime', 'Constant']
+    BUILTIN_GATES = ['NAND', 'Reshaper', 'Constant', 'Datetime', 'Source', 'Sink']
 
     def __init__(self, name):
         self.name = name
         self._definitions = {
             'NAND': Nand,
-            'Source': Source,
-            'Sink': Sink,
             'Reshaper': Reshaper,
+            'Constant': Constant,
             'Datetime': Datetime,
-            'Constant': Constant
+            'Source': Source,
+            'Sink': Sink
         }
         self._dependency_graph = DirectedGraph()
         for name in self._definitions.keys():
@@ -101,6 +101,48 @@ class Project:
     def _remove_dependency(self, from_type, to_type):
         self._dependency_graph.remove_edge(from_type, to_type)
     
+    def _get_dependencies(self, definition):
+        return [self._definitions[successor] for successor in self._dependency_graph.get_direct_successors(definition._name)]
+    
+    def _get_dependees(self, definition):
+        return [self._definitions[predecessor] for predecessor in self._dependency_graph.get_direct_predecessors(definition._name)]
+
+    def _run_on_dependees(self, definition, proc, acc=[]):
+        '''
+        Run the function proc on all dependees of the given definition
+        '''
+        for dependee in self._get_dependees(definition):
+            proc(dependee, acc + [definition])
+            self._run_on_dependees(dependee, proc, acc + [definition])
+
+    def _inserted_input(self, definition, idx):
+        for dependee in self._get_dependees(definition):
+            dependee._inserted_input(definition, idx)
+
+    def _inserted_output(self, definition, idx):
+        def helper(definition, acc):
+            definition._inserted_output(acc, idx)
+        self._run_on_dependees(definition, helper)
+
+    def _removed_input(self, definition, idx):
+        for dependee in self._get_dependees(definition):
+            dependee._removed_input(definition, idx)
+
+    def _removed_output(self, definition, idx):
+        def helper(definition, acc):
+            definition._removed_output(acc, idx)
+        self._run_on_dependees(definition, helper)
+    
+    def _remove_uid(self, definition, uid):
+        def helper(definition, acc):
+            definition._remove_uid(acc, uid)
+        self._run_on_dependees(definition, helper)
+
+    def repair_instances(self, definition):
+        def helper(definition, acc):
+            definition._repair_instances(acc)
+        self._run_on_dependees(definition, helper)
+
     def __getitem__(self, *args, **kwargs):
         return self._definitions.__getitem__(*args, **kwargs)
 

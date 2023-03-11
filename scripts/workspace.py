@@ -39,17 +39,62 @@ class ReshaperDialog(simpledialog.Dialog):
         self.destroy()
 
 class Workspace(tk.Canvas):
+    # VSCode theme
+    # # Colors for connection lines and io circle outlines
+    # ON = '#0099ff'
+    # OFF = 'white'
+    # ERROR = 'red'
+
+    # # Color for io circle fill
+    # IO_FILL = '#111111'
+    # IO_OUTLINE_OFF = 'white'
+
+    # # Colors for states
+    # STATE_OUTLINE = 'white'
+    # STATE_FILL_OFF = '#111111'
+
+    # # Colors for gate body
+    # BODY_OUTLINE = '#ffc813'
+    # BODY_FILL = '#333333'
+
+    # # Gate name color
+    # TEXT_COLOR = 'white'
+
+    # # Workspace colors
+    # BACKGROUND = '#1e1e1e'
+    # TITLE = '#4ec9b0'
+
+    # Colors for connection lines and io circle outlines
     ON = '#0099ff'
-    OFF = 'white'
+    OFF = 'black'
     ERROR = 'red'
+
+    # Color for io circle fill
+    IO_FILL = 'white'
+
+    # Colors for states
+    STATE_OUTLINE = 'black'
+    STATE_FILL_OFF = 'white'
+
+    # Colors for gate body
+    BODY_OUTLINE = 'black'
+    BODY_FILL = 'white'
+
+    # Gate name color
+    TEXT_COLOR = 'black'
+
+    # Workspace colors
+    BACKGROUND = 'white'
+    TITLE = 'grey'
+
     CIRCLERAD = 10
 
     def __init__(self, master, definition, project_frame, obj={}, **kwargs):
-        super().__init__(master, background='white', **kwargs)
+        super().__init__(master, background=Workspace.BACKGROUND, **kwargs)
         self._project_frame = project_frame
         self._project = project_frame._project
         self._definition = definition
-        self._title = self.create_text(0, 0, fill='grey', font=f'Courier 30', text=definition.name)
+        self._title = self.create_text(0, 0, fill=Workspace.TITLE, font=f'Courier 30', text=definition.name)
 
         self._components = {}
         for uid, gate in definition.gates.items():
@@ -57,7 +102,7 @@ class Workspace(tk.Canvas):
                 x, y = obj[uid]
                 self._components[uid] = self.create_component(x, y, gate)
             else:
-                self._components[uid] = self.create_component(300, 300, gate)
+                self._components[uid] = self.place_gate(gate)
 
         for (from_uid, to_uid), pairs in definition.connections.items():
             from_gate = definition.gates[from_uid]
@@ -77,7 +122,10 @@ class Workspace(tk.Canvas):
         self._right_click_tags = None
 
         self._ws_popup = tk.Menu(self, tearoff=0)
-        self._ws_popup.add_command(label='Reset all', command=self.reset_state)
+        self._ws_popup.add_command(label='Organize', command=self.organize_gates)
+        # self._ws_popup.add_command(label='Repair self', command=self._definition.repair_state)
+        self._ws_popup.add_command(label='Reset self', command=self.reset_state)
+        self._ws_popup.add_command(label='Repair instances', command=self._definition.repair_instances)
 
         self._component_popup = tk.Menu(self, tearoff=0)
         self._component_popup.add_command(label='Duplicate', command=self.duplicate_right_clicked_gate)
@@ -106,6 +154,8 @@ class Workspace(tk.Canvas):
         self.bind('<Configure>', self._on_resize)
         self.bind('<Button-1>', self._on_left_click)
         self.bind('<B1-Motion>', self._on_left_move)
+        self.bind('<Button-2>', self._on_middle_click)
+        self.bind('<B2-Motion>', self._on_middle_move)
         self.bind('<ButtonRelease-1>', self._on_left_release)
         self.bind('<Button-3>', self._on_right_click)
     
@@ -148,7 +198,7 @@ class Workspace(tk.Canvas):
                 args = []
             gate = self._project[name](*args)
             self._definition.add_gate(gate)
-            self._components[gate.uid] = self.create_component(300, 300, gate)
+            self._components[gate.uid] = self.place_gate(gate, force=False)
         except ValueError as e:
             simpledialog.messagebox.showerror('Error', str(e))
 
@@ -156,10 +206,11 @@ class Workspace(tk.Canvas):
         self.coords(self._title, e.width / 2, e.height / 2)
 
     def _on_left_click(self, e):
-        id = self.find_closest(e.x, e.y)
+        x, y = self.canvasx(e.x), self.canvasy(e.y)
+        id = self.find_closest(x, y)
 
         # Make sure the item contains the point that was clicked
-        if Bbox(self.bbox(id)).contains(e.x, e.y):
+        if Bbox(self.bbox(id)).contains(x, y):
             tags = self.gettags(id)
         else:
             tags = []
@@ -198,15 +249,18 @@ class Workspace(tk.Canvas):
                 to_tag = self._components[self._selected_gate.uid]
                 input_tag = f'{to_tag}:input:{self._selected_input}'
                 input_bbox = Bbox(self.bbox(input_tag))
-                output_bbox = Bbox((e.x, e.y + input_bbox.hheight), input_bbox.width, input_bbox.height)
+                output_bbox = Bbox((x, y + input_bbox.hheight), input_bbox.width, input_bbox.height)
                 connection_tag = f'virtualconnection:{self._selected_gate.uid}:{self._selected_input}'
                 output = [0] * self._selected_gate.input_dims[self._selected_input]
-                self._create_connection_lines(output_bbox, input_bbox, output, connection_tag)
+                self._create_connection_lines(output_bbox, input_bbox, output, len(output), connection_tag)
             elif tags[2] == 'toggle':
                 self._toggled_to = self._toggle(self._selected_gate, int(tags[3]), int(tags[4]))
             else:
                 center = Bbox(self.bbox(tag)).center
-                self._selection_offset = (center[0] - e.x, center[1] - e.y)
+                self._selection_offset = (center[0] - x, center[1] - y)
+    
+    def _on_middle_click(self, e):
+        self.scan_mark(e.x, e.y)
     
     def _get_state(self, gate, i, j):
         if gate.name == 'Constant':
@@ -226,10 +280,12 @@ class Workspace(tk.Canvas):
         tag = f'gate:{gate.uid}:{s}:{i}:{j}'
 
         # Get color
-        if num == 1:
+        if num is None:
+            color = Workspace.ERROR
+        elif num == 1:
             color = Workspace.ON
         else:
-            color = Workspace.OFF
+            color = Workspace.STATE_FILL_OFF
 
         # Update color
         ids = self.find_withtag(tag)
@@ -264,10 +320,11 @@ class Workspace(tk.Canvas):
 
     def _on_left_move(self, e):
         if self._selected_gate is not None:
+            x, y = self.canvasx(e.x), self.canvasy(e.y)
             # We are dragging a gate
             if self._selection_offset is not None:
                 x_off, y_off = self._selection_offset
-                self.move_component_to(self._selected_gate, e.x + x_off, e.y + y_off)
+                self.move_component_to(self._selected_gate, x + x_off, y + y_off, force=True)
             # We are making a connection
             elif self._selected_input is not None:
                 to_tag = self._components[self._selected_gate.uid]
@@ -279,24 +336,32 @@ class Workspace(tk.Canvas):
                 for line_id in line_ids:
                     _, _, x2, y2 = self.coords(line_id)
                     x_off = x2 - input_bbox.xc
-                    self.coords(line_id, e.x + x_off, e.y, x2, y2)
+                    self.coords(line_id, x + x_off, y, x2, y2)
             # Check for state updates
             elif self._toggled_to is not None:
                 # Find closest item that is not a line
-                tags = self._get_closest_tags(e.x, e.y)
+                tags = self._get_closest_tags(x, y)
                 if len(tags) != 0 and tags[0] == 'gate':
                     if tags[-1] == 'current':
                         tags = tags[-2].split(':')
                     else:
                         tags = tags[-1].split(':')
-                    
+
                     # We are over the selected gate
                     if int(tags[1]) == self._selected_gate.uid and tags[2] == 'toggle':
                         self._set_state(self._selected_gate, int(tags[3]), int(tags[4]), self._toggled_to)
+    
+    def _on_middle_move(self, e):
+        self.scan_dragto(e.x, e.y, gain=1)
+
+        # Keep title in the middle
+        w, h = self.winfo_width(), self.winfo_height()
+        self.coords(self._title, self.canvasx(w / 2), self.canvasy(h / 2))
 
     def _on_left_release(self, e):
         # Find closest item that is not a line
-        tags = self._get_closest_tags(e.x, e.y)
+        x, y = self.canvasx(e.x), self.canvasy(e.y)
+        tags = self._get_closest_tags(x, y)
         
         # Clicking on a gate
         if len(tags) != 0 and tags[0] == 'gate':
@@ -348,20 +413,8 @@ class Workspace(tk.Canvas):
 
     def _on_right_click(self, e):
         # Find closest item that is not a line
-        ids = []
-        for id in self.find_overlapping(e.x, e.y, e.x, e.y):
-            if self.type(id) != 'line':
-                ids.append(id)
-        if len(ids) == 0:
-            id = None
-        else:
-            id = ids[-1]
-
-        # Make sure the item contains the point that was clicked
-        if id is not None and Bbox(self.bbox(id)).contains(e.x, e.y):
-            tags = self.gettags(id)
-        else:
-            tags = []
+        x, y = self.canvasx(e.x), self.canvasy(e.y)
+        tags = self._get_closest_tags(x, y)
         self._right_click_tags = None
         
         # Clicking on a gate
@@ -396,6 +449,46 @@ class Workspace(tk.Canvas):
             finally:
                 self._ws_popup.grab_release()
 
+    def organize_gates(self):
+        padding = 10
+        rank = self._definition.graph.get_layers(self._definition.source.uid)
+        layers = {}
+        ranks = sorted(set(rank.values()))
+        max_rank = ranks[-1]
+        for layer in ranks:
+            uids = [uid for uid in rank if rank[uid] == layer]
+            layers[max_rank - layer] = uids
+        
+        old_bbox = Bbox(self.bbox('gate'))
+
+        bboxes = {}
+        for layer, uids in layers.items():
+            for uid in uids:
+                bboxes[uid] = Bbox(self.bbox(self._components[uid])).pad(padding, padding)
+
+        layer_bboxes = [None] * len(layers)
+        for layer, uids in layers.items():
+            layer_bbox = Bbox(
+                sum([bboxes[uid].width for uid in uids]),
+                max([bboxes[uid].height for uid in uids])
+            )
+            layer_bboxes[layer] = layer_bbox
+        
+        theight = sum([layer_bbox.height for layer_bbox in layer_bboxes])
+        # y = old_bbox.y1 + layer_bboxes[0].hheight - padding
+        y = old_bbox.yc - (theight / 2) + layer_bboxes[0].hheight
+        for layer, layer_bbox in enumerate(layer_bboxes):
+            for uid in layers[layer]:
+                bbox = bboxes[uid]
+                bboxes[uid] = Bbox((bbox.xc, y), bbox.width, bbox.height)
+            y += layer_bbox.height
+        
+        for _, uids in layers.items():
+            for uid in uids:
+                bbox = bboxes[uid]
+                gate = self._definition.gates[uid]
+                self.move_component_to(gate, bbox.xc, bbox.yc, force=True)
+
     def reset_state(self):
         self._definition.reset_state()
 
@@ -409,6 +502,19 @@ class Workspace(tk.Canvas):
                     output = [output]
                 for j, num in enumerate(output):
                     self._set_state(source, i, j, num)
+
+    def place_gate(self, gate, force=True):
+        new_tag = self.create_component(self.canvasx(0), self.canvasy(0), gate)
+        new_bbox = Bbox(self.bbox(new_tag))
+        new_bbox += (new_bbox.hwidth, new_bbox.hheight)
+        bboxes = []
+        for tag in self._components.values():
+            bboxes.append(Bbox(self.bbox(tag)))
+        bboxes = sorted(bboxes, key=lambda bbox: (bbox.yc, bbox.xc))
+        for bbox in bboxes:
+            Bbox.resolve_collision(bbox, new_bbox)
+        self.move_component_to(gate, new_bbox.xc, new_bbox.yc, force=force)
+        return new_tag
 
     def set_right_clicked_label(self):
         tags = self._right_click_tags
@@ -497,20 +603,21 @@ class Workspace(tk.Canvas):
         width = kwargs.get('width', 1)
         tags = kwargs.get('tags', ())
 
-        r *= 0.8
+        if type(r) != list:
+            r = [r] * 4
+
+        r0, r1, r2, r3 = r
         point_sets = [
-            [x1+r, y1,
-            x2-r, y1],
-            [x2, y1+r,
-            x2, y2-r],
-            [x2-r, y2,
-            x1+r, y2],
-            [x1, y2-r,
-            x1, y1+r]
+            [x1 + 0.8 * r0, y1,
+            x2 - 0.8 * r1, y1],
+            [x2, y1 + 0.8 * r1,
+            x2, y2 - 0.8 * r2],
+            [x2 - 0.8 * r2, y2,
+            x1 + 0.8 * r3, y2],
+            [x1, y2 - 0.8 * r3,
+            x1, y1 + 0.8 * r0]
         ]
-        r /= 0.8
-        corners = [(x2-r, y1+r), (x1+r, y1+r), (x1+r, y2-r), (x2-r, y2-r)]
-        bbox = Bbox(2*r, 2*r)
+        corners = [(x2-r1, y1+r1), (x1+r0, y1+r0), (x1+r3, y2-r3), (x2-r2, y2-r2)]
 
         # Draw interior
         interior = None
@@ -522,7 +629,8 @@ class Workspace(tk.Canvas):
                 width=0,
                 tags=tags
             )
-            for i, corner in enumerate(corners):
+            for i, (ri, corner) in enumerate(zip([r1, r0, r3, r2], corners)):
+                bbox = Bbox(2*ri, 2*ri)
                 id = self.create_arc(
                     *(bbox + corner),
                     start=90*i,
@@ -536,7 +644,8 @@ class Workspace(tk.Canvas):
 
         # Draw outline
         if outline != '':
-            for i, corner in enumerate(corners):
+            for i, (ri, corner) in enumerate(zip([r1, r0, r3, r2], corners)):
+                bbox = Bbox(2*ri, 2*ri)
                 self.create_arc(
                     *(bbox + corner),
                     start=90*i,
@@ -571,7 +680,7 @@ class Workspace(tk.Canvas):
                 text = gate.name
             text_id = self.create_text(
                 0, 0,
-                fill='black',
+                fill=Workspace.TEXT_COLOR,
                 font=f'Courier {name_size}',
                 text=text,
                 tags=get_tags(f'{tag}:name')
@@ -615,7 +724,7 @@ class Workspace(tk.Canvas):
             max(center_bbox.width, inputs_bbox.width, outputs_bbox.width),
             center_bbox.height
         ).pad(circlerad, circlerad)
-        rrec = self.create_round_rectangle(*gate_bbox, circlerad, fill='white', width=3, tags=get_tags(f'{tag}:body'))
+        rrec = self.create_round_rectangle(*gate_bbox, circlerad, fill=Workspace.BODY_FILL, outline=Workspace.BODY_OUTLINE, width=3, tags=get_tags(f'{tag}:body'))
 
         # Reorder text
         if gate.name != 'Constant':
@@ -643,32 +752,52 @@ class Workspace(tk.Canvas):
                     center = (dbbox.x1 + bbox.width * j + bbox.hwidth, state_bbox.yc)
 
                     # Get input or output
-                    if rdim == 1:
+                    if state[i] is None:
+                        num = None
+                    elif rdim == 1:
                         num = state[i]
                     else:
                         num = state[i][j]
                     
                     # Get color
-                    if num == 1:
+                    if num is None:
+                        color = Workspace.ERROR
+                    elif num == 1:
                         color = Workspace.ON
                     else:
-                        color = Workspace.OFF
+                        color = Workspace.STATE_FILL_OFF
 
                     # Create toggle or display area
                     if width < 8:
-                        self.create_rectangle(
-                            *(bbox + center),
-                            tags=get_tags(f'{tag}:{s}:{i}:{j}'),
-                            fill=color,
-                            outline='',
-                            width=0
-                        )
+                        # Add cap rectangles
+                        if j == 0 or j == rdim - 1:
+                            if j == 0:
+                                rads = [3, 0, 0, 3]
+                            else:
+                                rads = [0, 3, 3, 0]
+                            self.create_round_rectangle(
+                                *(bbox + center),
+                                rads,
+                                tags=get_tags(f'{tag}:{s}:{i}:{j}'),
+                                fill=color,
+                                outline='',
+                                width=0
+                            )
+                        else:
+                            self.create_rectangle(
+                                *(bbox + center),
+                                tags=get_tags(f'{tag}:{s}:{i}:{j}'),
+                                fill=color,
+                                outline='',
+                                width=0
+                            )
                     else:
                         self.create_round_rectangle(
                             *(bbox + center),
                             3,
                             tags=get_tags(f'{tag}:{s}:{i}:{j}'),
-                            fill=color
+                            fill=color,
+                            outline=Workspace.STATE_OUTLINE
                         )
 
                 # Create surrounding rectangle if necessary
@@ -676,7 +805,8 @@ class Workspace(tk.Canvas):
                     self.create_round_rectangle(
                         *dbbox,
                         3,
-                        tags=get_tags(f'{tag}:state')
+                        tags=get_tags(f'{tag}:state'),
+                        outline=Workspace.STATE_OUTLINE
                     )
 
         # Create input and output circles
@@ -699,7 +829,10 @@ class Workspace(tk.Canvas):
                 elif curr_io is None:
                     num = None
                 else:
-                    num = max(curr_io)
+                    if None in curr_io:
+                        num = None
+                    else:
+                        num = max(curr_io)
                 
                 # Get color for input/output
                 if num is None:
@@ -707,7 +840,7 @@ class Workspace(tk.Canvas):
                 elif num == 1:
                     color = Workspace.ON
                 else:
-                    color = 'black'
+                    color = Workspace.OFF
 
                 # Draw input/output circle
                 bbox = circle_bbox.scalex(dim)
@@ -715,7 +848,7 @@ class Workspace(tk.Canvas):
                 self.create_round_rectangle(
                     *(bbox + center),
                     circlerad,
-                    fill='white',
+                    fill=Workspace.IO_FILL,
                     outline=color,
                     tags=get_tags(f'{tag}:{s}:{i}')
                 )
@@ -776,29 +909,38 @@ class Workspace(tk.Canvas):
         # Get output
         outputs = self._definition.get_gate_outputs(from_gate.uid)
         output = outputs[output_idx]
+        dim = from_gate.output_dims[output_idx]
 
         # Create lines
         connection_tag = f'connection:{from_gate.uid}:{to_gate.uid}:{output_idx}:{input_idx}'
-        self._create_connection_lines(output_bbox, input_bbox, output, connection_tag)
+        self._create_connection_lines(output_bbox, input_bbox, output, dim, connection_tag)
 
         return connection_tag
 
-    def _create_connection_lines(self, output_bbox, input_bbox, output, connection_tag):
+    def _create_connection_lines(self, output_bbox, input_bbox, output, dim, connection_tag):
         p1 = (output_bbox.x1, output_bbox.y1 + 1)
         p2 = (input_bbox.x1, input_bbox.y2 - 1)
 
         # Make output enumerable
-        if output is None or type(output) == int:
+        if type(output) == int:
             output = [output]
 
         # Create line for each output
         diff = 2 * Workspace.CIRCLERAD
-        width = (output_bbox.width - diff) / len(output)
-        for i, num in enumerate(output):
-            if num == 1:
+        width = (output_bbox.width - diff) / dim
+        # print(dim, output)
+        for i in range(dim):
+            if output is None:
+                num = None
+            else:
+                num = output[i]
+            
+            if num is None:
+                color = Workspace.ERROR
+            elif num == 1:
                 color = Workspace.ON
             else:
-                color = 'black'
+                color = Workspace.OFF
             
             # Create line offset
             off = i * width + (width + diff) / 2
@@ -859,7 +1001,10 @@ class Workspace(tk.Canvas):
                     elif curr_io is None:
                         num = None
                     else:
-                        num = max(curr_io)
+                        if None in curr_io:
+                            num = None
+                        else:
+                            num = max(curr_io)
                     
                     # Get color for input/output
                     if num is None:
@@ -867,7 +1012,7 @@ class Workspace(tk.Canvas):
                     elif num == 1:
                         color = Workspace.ON
                     else:
-                        color = 'black'
+                        color = Workspace.OFF
 
                     # Update colors
                     for id in ids:
@@ -883,21 +1028,32 @@ class Workspace(tk.Canvas):
                     if gate.dims[i] == 1:
                         self._set_state(gate, i, 0, nums, update_def=False)
                     else:
-                        for j, num in enumerate(nums):
+                        for j in range(gate.dims[i]):
+                            if nums is None:
+                                num = None
+                            else:
+                                num = nums[j]
                             self._set_state(gate, i, j, num, update_def=False)
 
         # Update all connection colors
         for (from_uid, to_uid), pairs in self._definition.connections.items():
             for output_idx, input_idx in pairs:
                 output = outputs_dict[from_uid][output_idx]
-                if output is None or type(output) == int:
+                if type(output) == int:
                     output = [output]
-                for j, num in enumerate(output):
+                for j in range(self._definition.gates[from_uid].output_dims[output_idx]):
+                    if output is None:
+                        num = None
+                    else:
+                        num = output[j]
+
                     # Get color for line
-                    if num == 1:
+                    if num is None:
+                        color = Workspace.ERROR
+                    elif num == 1:
                         color = Workspace.ON
                     else:
-                        color = 'black'
+                        color = Workspace.OFF
                     line_ids = self.find_withtag(f'connection:{from_uid}:{to_uid}:{output_idx}:{input_idx}:{j}')
                     for line_id in line_ids:
                         self.itemconfigure(line_id, fill=color)
@@ -935,10 +1091,16 @@ class Workspace(tk.Canvas):
         for uid in removed:
             del self._components[uid]
 
+    @property
+    def name(self):
+        return self._definition.name
+
     def serialize(self):
         obj = {}
+        xc, yc = self.canvasx(0), self.canvasy(0)
         for uid, tag in self._components.items():
-            obj[uid] = Bbox(self.bbox(tag)).center
+            x, y = Bbox(self.bbox(tag)).center
+            obj[uid] = (x - xc, y - yc)  # Save screen coordinates as canvas coordinates
         return obj
     
     def deserialize(obj, master, definition, project_frame):

@@ -24,7 +24,12 @@ class Reshaper(Gate):
             if output_dim == 1:
                 outputs.append(flattened_inputs[i])
             else:
-                outputs.append(flattened_inputs[i:i+output_dim])
+                curr_output = flattened_inputs[i:i+output_dim]
+                # if None in curr_output:
+                #     outputs.append(None)
+                # else:
+                #     outputs.append(curr_output)
+                outputs.append(curr_output)
             i += output_dim
         
         return outputs

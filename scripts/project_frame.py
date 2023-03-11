@@ -1,5 +1,6 @@
 import tkinter as tk
 import tkinter.ttk as ttk
+from tkinter import simpledialog
 from directory import Directory
 from gates import Project
 from workspace import Workspace
@@ -41,14 +42,14 @@ class ProjectFrame(tk.Frame):
 
         # Create the directory widget
         if dir_obj is None:
-            self._tree = Directory(self._sidebar, project)
+            self._tree = Directory(self._sidebar, self)
         else:
             self._tree = Directory.deserialize(dir_obj, self._sidebar, self)
         self._tree.heading('#0', text='Components')
         self._tree.pack(padx=5, pady=5, side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
         # Button to create a new component
-        self._new_component = tk.Button(self._sidebar, text="New component", command=self._tree.new_component)
+        self._new_component = tk.Button(self._sidebar, text="New gate", command=self._tree.new_component)
         self._new_component.pack(padx=5, pady=5, side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Button to create a new folder
@@ -133,10 +134,14 @@ class ProjectFrame(tk.Frame):
 
     def serialize(self):
         workspaces = {name: ws.serialize() for name, ws in self._workspaces.items()}
+        name = None
+        if self._current_workspace is not None:
+            name = self._current_workspace.name
         return {
             'project': self._project.serialize(),
             'directory': self._tree.serialize(),
             'workspaces': workspaces,
+            'current_workspace': name,
             'tps': self._tps_var.get()
         }
 
@@ -163,11 +168,16 @@ class ProjectFrame(tk.Frame):
         )
         pframe._tps_var.set(obj.get('tps', 20))
         pframe._tps_change()
+        pframe.show_workspace(obj.get('current_workspace', None))
         return pframe
 
     def tick(self):
         if self._current_workspace is not None:
-            self._current_workspace.tick()
+            try:
+                self._current_workspace.tick()
+            except Exception as e:
+                simpledialog.messagebox.showerror('Error', str(e))
+                raise e
     
     def _tps_change(self, e=None):
         self._tps_label.config(text=f'TPS: {self._tps_var.get()}')
@@ -180,6 +190,14 @@ class ProjectFrame(tk.Frame):
         self._tps_var.set(self._tps_var.get() - 1)
         self._tps_change()
 
+    def _rename(self, new_name):
+        self._project.name = new_name
+        self._project_label.config(text=new_name)
+
+    @property
+    def name(self):
+        return self._project.name
+
     def loop(self):
         tps = self._tps_var.get()
         if tps > 0:
@@ -188,3 +206,6 @@ class ProjectFrame(tk.Frame):
         else:
             # Check if tps is nonzero every 100 milliseconds
             self.after(100, self.loop)
+    
+    def startloop(self):
+        self.after(10, self.loop)

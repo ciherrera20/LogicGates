@@ -19,10 +19,11 @@ class CompoundGate(Gate):
         return self._definition._init_state()
     
     def __call__(self, inputs, state=None):
-        try:
-            return self._definition._process_state(inputs, state=state)
-        except ValueError as e:
-            raise ValueError(f'Gate {self._uid}: {str(e)}')
+        return self._definition._process_state(inputs, state=state)
+        # try:
+        #     return self._definition._process_state(inputs, state=state)
+        # except Exception as e:
+        #     raise Exception(f'Gate {self._uid}: {str(e)}') from e
 
     def serialize_state(self, state):
         return self._definition.serialize_state(state)
@@ -73,14 +74,18 @@ class GateDefinition:
         # Represents the input (source) and output (sink) to the overall gate
         self._source = Source(self._input_dims, self._input_labels)
         self._sink = Sink(self._output_dims, self._output_labels)
-        self.add_gate(self._source)
         self.add_gate(self._sink)
+        self.add_gate(self._source)
 
         # The order to evaluate the internal gates in
-        self._order = None      # A list of gate uids representing the evaluation order
-        self._cut_gates = None  # A set of gate uids corresponding to gates whose outputs should be saved
-        self._reorder = True    # Flag set whenever the graph representing the definition's internal structure changes
+        self._order = None          # A list of gate uids representing the evaluation order
+        self._cut_gates = None      # A set of gate uids corresponding to gates whose outputs should be saved
+        self._stateful_gates = None # A set of gate uids corresponding to gates that require a state to be saved
+        self._rooted_gates = None   # A set of gate uids corresponding to gates that connect to the sink
+        self._reorder = True        # Flag set whenever the graph representing the definition's internal structure changes
         # TODO: look into refactoring the directed graph code to update the order instead of recomputing it
+
+        self._instance_uids = OrderedSet()
 
     def add_gate(self, gate, state=None, outputs=None):
         '''
@@ -150,6 +155,7 @@ class GateDefinition:
         # Update definition's state
         if gate._uid in self._state:
             del self._state[gate._uid]
+        self._project._remove_uid(self, gate._uid)
 
     def remove_gate_type(self, name):
         '''
@@ -194,8 +200,10 @@ class GateDefinition:
         input_idx, to_gate = to_pair
 
         # Validate matching input output dimensions
-        if from_gate._output_dims[output_idx] != to_gate._input_dims[input_idx]:
-            raise ValueError('Mismatched dimensions')
+        from_dim = from_gate._output_dims[output_idx]
+        to_dim = to_gate._input_dims[input_idx]
+        if from_dim != to_dim:
+            raise ValueError(f'{self._name}. Mismatched dimensions. ({from_gate._name}:{from_gate._uid}, {output_idx}) has dimension {from_dim} while ({input_idx}, {to_gate._name}:{to_gate._uid}) has dimension {to_dim}')
 
         # If a connection between the two gates does not yet exist, create it
         key = (from_gate._uid, to_gate._uid)
@@ -334,6 +342,148 @@ class GateDefinition:
         '''
         self.remove_connection((self._source, source_idx), (sink_idx, self._sink))
 
+    def _shift_incoming_right(self, gate, idx):
+        '''
+        Move all of the given gate's incoming connections after idx to the right by 1
+        '''
+        # Move all connections after idx
+        for predecessor_uid in self._graph.get_direct_predecessors(gate._uid):
+            new_pairs = OrderedSet()
+            for output_idx, input_idx in self._connections[predecessor_uid, gate._uid]:
+                if input_idx >= idx:
+                    input_idx += 1
+                new_pairs.add((output_idx, input_idx))
+            self._connections[predecessor_uid, gate._uid] = new_pairs
+
+    def _shift_outgoing_right(self, gate, idx):
+        '''
+        Move all of the given gate's outgoing connections after idx to the right by 1
+        '''
+        # Move all connections after idx
+        for successor_uid in self._graph.get_direct_successors(gate._uid):
+            new_pairs = OrderedSet()
+            for output_idx, input_idx in self._connections[gate._uid, successor_uid]:
+                if output_idx >= idx:
+                    output_idx += 1
+                new_pairs.add((output_idx, input_idx))
+            self._connections[gate._uid, successor_uid] = new_pairs
+    
+    def _shift_incoming_left(self, gate, idx):
+        '''
+        Move all of the given gate's incoming connections after idx to the left by 1, removing any connections at idx
+        '''
+        # Move all connections after idx
+        for predecessor_uid in self._graph.get_direct_predecessors(gate._uid):
+            new_pairs = OrderedSet()
+            for output_idx, input_idx in self._connections[predecessor_uid, gate._uid]:
+                if input_idx > idx:
+                    input_idx -= 1
+                elif input_idx == idx:
+                    continue
+                new_pairs.add((output_idx, input_idx))
+            self._connections[predecessor_uid, gate._uid] = new_pairs
+
+    def _shift_outgoing_left(self, gate, idx):
+        '''
+        Move all of the given gate's outgoing connections after idx to the left by 1, removing any connections at idx
+        '''
+        # Move all connections after idx
+        for successor_uid in self._graph.get_direct_successors(gate._uid):
+            new_pairs = OrderedSet()
+            for output_idx, input_idx in self._connections[gate._uid, successor_uid]:
+                if output_idx > idx:
+                    output_idx -= 1
+                elif output_idx == idx:
+                    continue
+                new_pairs.add((output_idx, input_idx))
+            self._connections[gate._uid, successor_uid] = new_pairs
+
+    def _run_on_type_states(self, definitions, proc, states=None):
+        if states is None:
+            states = [self._state]
+
+        definition = definitions[-1]
+        if len(definitions) == 1:
+            for state in states:
+                for uid in state:
+                    if uid in definition._instance_uids:
+                        state[uid] = proc(state[uid])
+            for state in states:
+                for uid in list(state.keys()):
+                    if uid in definition._instance_uids:
+                        gate_state, outputs = state[uid]
+                        if gate_state is not None and len(gate_state) == 0:
+                            gate_state = None
+                        if gate_state is None and outputs is None:
+                            del state[uid]
+                        else:
+                            state[uid] = (gate_state, outputs)
+        else:
+            new_states = []
+            for state in states:
+                for uid in state:
+                    if uid in definition._instance_uids:
+                        gate_state = state[uid][0]
+                        if gate_state is not None:
+                            new_states.append(gate_state)
+            self._run_on_type_states(definitions[:-1], proc, new_states)
+            for state in states:
+                for uid in list(state.keys()):
+                    if uid in definition._instance_uids:
+                        gate_state, outputs = state[uid]
+                        if gate_state is not None and len(gate_state) == 0:
+                            gate_state = None
+                        if gate_state is None and outputs is None:
+                            del state[uid]
+                        else:
+                            state[uid] = (gate_state, outputs)
+
+    def _inserted_input(self, definition, idx):
+        for uid in self._gate_types[definition._name]:
+            self._shift_incoming_right(self._gates[uid], idx)
+    
+    def _inserted_output(self, definitions, idx):
+        if len(definitions) == 1:
+            for uid in self._gate_types[definitions[0]._name]:
+                self._shift_outgoing_right(self._gates[uid], idx)
+        
+        dim = definitions[0]._output_dims[idx]
+        def proc(state):
+            _, outputs = state
+            if outputs is not None:
+                if dim == 1:
+                    new_output = Gate.DEFAULT_VALUE
+                else:
+                    new_output = [Gate.DEFAULT_VALUE] * dim
+                outputs.insert(idx, new_output)
+            return state
+
+        self._run_on_type_states(definitions, proc)
+
+    def _removed_input(self, definition, idx):
+        for uid in self._gate_types[definition._name]:
+            self._shift_incoming_left(self._gates[uid], idx)
+    
+    def _removed_output(self, definitions, idx):
+        if len(definitions) == 1:
+            for uid in self._gate_types[definitions[0]._name]:
+                self._shift_outgoing_left(self._gates[uid], idx)
+
+        def proc(state):
+            _, outputs = state
+            if outputs is not None:
+                outputs.pop(idx)
+            return state
+        self._run_on_type_states(definitions, proc)
+    
+    def _remove_uid(self, definitions, uid):
+        def proc(state):
+            gate_state, _  = state
+            if gate_state is not None and uid in gate_state:
+                del gate_state[uid]
+            return state
+        self._run_on_type_states(definitions, proc)
+
     def insert_input(self, idx, dim, label=''):
         '''
         Insert a new input for the definition at idx with the given dimension
@@ -353,14 +503,8 @@ class GateDefinition:
         else:
             self._state['inputs'].insert(idx, [Gate.DEFAULT_VALUE] * dim)
 
-        # Move all connections after idx
-        for successor_uid in self._graph.get_direct_successors(self._source._uid):
-            new_pairs = OrderedSet()
-            for output_idx, input_idx in self._connections[self._source._uid, successor_uid]:
-                if output_idx >= idx:
-                    output_idx += 1
-                new_pairs.add((output_idx, input_idx))
-            self._connections[self._source.uid, successor_uid] = new_pairs
+        self._shift_outgoing_right(self._source, idx)
+        self._project._inserted_input(self, idx)
 
     def insert_output(self, idx, dim, label=''):
         '''
@@ -381,14 +525,8 @@ class GateDefinition:
         else:
             self._state['outputs'].insert(idx, [Gate.DEFAULT_VALUE] * dim)
 
-        # Move all connections after idx
-        for predecessor_uid in self._graph.get_direct_predecessors(self._sink._uid):
-            new_pairs = OrderedSet()
-            for output_idx, input_idx in self._connections[predecessor_uid, self._sink._uid]:
-                if input_idx >= idx:
-                    input_idx += 1
-                new_pairs.add((output_idx, input_idx))
-            self._connections[predecessor_uid, self._sink._uid] = new_pairs
+        self._shift_incoming_right(self._sink, idx)
+        self._project._inserted_output(self, idx)
     
     def append_input(self, dim):
         '''
@@ -483,16 +621,8 @@ class GateDefinition:
         # Update source state
         self._state['inputs'].pop(idx)
 
-        # Move all connections after idx
-        for successor_uid in self._graph.get_direct_successors(self._source._uid):
-            new_pairs = OrderedSet()
-            for output_idx, input_idx in self._connections[self._source._uid, successor_uid]:
-                if output_idx > idx:
-                    output_idx -= 1
-                elif output_idx == idx:
-                    continue
-                new_pairs.add((output_idx, input_idx))
-            self._connections[self._source._uid, successor_uid] = new_pairs
+        self._shift_outgoing_left(self._source, idx)
+        self._project._removed_input(self, idx)
 
     def remove_output(self, idx):
         '''
@@ -509,16 +639,8 @@ class GateDefinition:
         # Update sink state
         self._state['outputs'].pop(idx)
 
-        # Move all connections from old sink gate to the new one
-        for predecessor_uid in self._graph.get_direct_predecessors(self._sink._uid):
-            new_pairs = OrderedSet()
-            for output_idx, input_idx in self._connections[predecessor_uid, self._sink._uid]:
-                if input_idx > idx:
-                    input_idx -= 1
-                elif input_idx == idx:
-                    continue
-                new_pairs.add((output_idx, input_idx))
-            self._connections[predecessor_uid, self._sink._uid] = new_pairs
+        self._shift_incoming_left(self._sink, idx)
+        self._project._removed_output(self, idx)
 
     def pop_input(self):
         '''
@@ -582,8 +704,22 @@ class GateDefinition:
     def _update_order(self):
         # Compute a new evaluation order if necessary
         if self._reorder:
-            self._order, self._cut_gates = self._graph.get_order(self._source._uid)
+            old_cut_gates = self._cut_gates or OrderedSet()
+            old_rooted_gates = self._rooted_gates or OrderedSet()
+            self._order, cut_edges = self._graph.get_order(self._source._uid)
+            self._cut_gates = OrderedSet()
+            for (v, _) in cut_edges:
+                self._cut_gates.add(v)
+            self._rooted_gates = self._graph.get_all_predecessors(self._sink._uid)
+            self._rooted_gates.add(self._sink._uid)  # Add sink
             self._reorder = False
+
+            # for old_rooted_gate_uid in (old_rooted_gates - self._rooted_gates):
+            #     self._project._remove_uid(self, old_rooted_gate_uid)
+            # print(f'{self._name}: Cut gates removed {old_cut_gates - self._cut_gates}')
+            # print(f'{self._name}: Cut gates added {self._cut_gates - old_cut_gates}')
+            # print(f'{self._name}: Rooted gates removed {old_rooted_gates - self._rooted_gates}')
+            # print(f'{self._name}: Rooted gates added {self._rooted_gates - old_rooted_gates}')
 
     def _init_state(self):
         '''
@@ -593,24 +729,35 @@ class GateDefinition:
 
         # Store the states for each gate in the definition if needed
         state = {}
+        old_stateful_gates = self._stateful_gates or OrderedSet()
+        self._stateful_gates = OrderedSet()
         for gate_uid, gate in self._gates.items():
-            if gate_uid != self._source._uid and gate_uid != self._sink._uid:
-                # We only need to store a gate's state if it is not None or if it is a cut gate
+            # Don't store the source, sink, or any gate that is not a predecessor of the sink
+            if gate_uid != self._source._uid and gate_uid != self._sink._uid and gate_uid in self._rooted_gates:
+                # We only need to store a gate's state if it is not None
                 gate_state = gate._init_state()
+                if gate_state is not None:
+                    self._stateful_gates.add(gate._uid)
+
+                # We only need to store a gate's outputs if it is a cut gate
                 if gate_uid in self._cut_gates:
                     outputs = gate(gate._init_inputs(), gate_state)
                 else:
                     outputs = None
-                # Store what we need
+
+                # If both the state and outputs are None, we don't need store anything
                 if gate_state is not None or outputs is not None:
                     state[gate_uid] = (gate_state, outputs)
         
+        # print(f'{self._name}: Stateful gates removed {old_stateful_gates - self._stateful_gates}')
+        # print(f'{self._name}: Stateful gates added {self._stateful_gates - old_stateful_gates}')
+
         # Return None if this gate does not need to store a state
         if len(state) == 0:
             return None
         return state
 
-    def _process_state(self, inputs, state=None):
+    def _process_state(self, inputs, state=None, all=False):
         '''
         Process a given state
         '''
@@ -627,6 +774,10 @@ class GateDefinition:
             if gate_uid == self._source._uid:
                 continue
 
+            # Skip over gates that are not connected
+            if gate_uid not in self._rooted_gates and not all:
+                continue
+
             # Retrieve the gate
             gate = self._gates[gate_uid]
 
@@ -635,9 +786,15 @@ class GateDefinition:
             for predecessor_uid in self._graph.get_direct_predecessors(gate_uid):
                 for output_idx, input_idx in self._connections[predecessor_uid, gate_uid]:
                     if predecessor_uid in outputs:
+                        # Predecessor's outputs were already computed
                         gate_inputs[input_idx] = outputs[predecessor_uid][output_idx]
                     elif predecessor_uid in state:
-                        gate_inputs[input_idx] = state[predecessor_uid][1][output_idx]
+                        # Predecessor's outputs have not yet been computed, grab the previous ones from the state
+                        stored_outputs = state[predecessor_uid][1]
+                        if stored_outputs is None:
+                            gate_inputs[input_idx] = None
+                        else:
+                            gate_inputs[input_idx] = stored_outputs[output_idx]
                     else:
                         gate_inputs[input_idx] = None
                         # print(f'Invalid state in {self._name}, could not find gate {predecessor_uid}')
@@ -651,14 +808,17 @@ class GateDefinition:
                 if gate_uid in state:
                     gate_state = state[gate_uid][0]
                     gate_outputs = gate(gate_inputs, gate_state)
-                    state[gate_uid] = (gate_state, gate_outputs)
+                    if state[gate_uid][1] is None:
+                        state[gate_uid] = (gate_state, None)
+                    else:
+                        state[gate_uid] = (gate_state, gate_outputs)
                 else:
                     gate_outputs = gate(gate_inputs)
                 outputs[gate_uid] = gate_outputs
         return outputs['final']
 
     def tick(self):
-        self._state['outputs'] = self._process_state(self._state['inputs'], self._state)
+        self._state['outputs'] = self._process_state(self._state['inputs'], self._state, all=True)
 
     def serialize(self):
         # Serialize gates
@@ -857,6 +1017,10 @@ class GateDefinition:
     @property
     def sink(self):
         return self._sink
+    
+    @property
+    def graph(self):
+        return self._graph
 
     def get_gate_predecessors(self, uid):
         '''
@@ -928,8 +1092,8 @@ class GateDefinition:
         self._validate_from_pair(from_pair)
         from_gate, output_idx = from_pair
         to_pairs = []
-        for successor_uid in self._graph.get_direct_successors(from_gate.uid):
-            pairs = self._connections[(from_gate.uid, successor_uid)]
+        for successor_uid in self._graph.get_direct_successors(from_gate._uid):
+            pairs = self._connections[(from_gate._uid, successor_uid)]
             for idx, input_idx in pairs:
                 if idx == output_idx:
                     to_pairs.append((input_idx, self._gates[successor_uid]))
@@ -941,8 +1105,8 @@ class GateDefinition:
         '''
         self._validate_to_pair(to_pair)
         input_idx, to_gate = to_pair
-        for predecessor_uid in self._graph.get_direct_predecessors(to_gate.uid):
-            pairs = self._connections[(predecessor_uid, to_gate.uid)]
+        for predecessor_uid in self._graph.get_direct_predecessors(to_gate._uid):
+            pairs = self._connections[(predecessor_uid, to_gate._uid)]
             for output_idx, idx in pairs:
                 if idx == input_idx:
                     return (self._gates[predecessor_uid], output_idx)
@@ -966,8 +1130,24 @@ class GateDefinition:
         self._state = {}
         for gate in self._gates.values():
             self.reset_gate_state(gate)
-        self._reorder = True  # Reevaluate
+        self._reorder = True  # Reevaluate the order
     
+    def repair_state(self):
+        pass
+        # for key, state in self._state.items():
+        #     if key != 'inputs' and key != 'outputs':
+        #         gate_state, outputs = state
+
+    def _repair_instances(self, definitions):
+        def proc(_):
+            gate_state = definitions[0]._init_state()
+            inputs = definitions[0]._init_inputs()
+            return (gate_state, definitions[0]._process_state(inputs, gate_state))
+        self._run_on_type_states(definitions, proc)
+
+    def repair_instances(self):
+        self._project.repair_instances(self)
+
     def duplicate_gate(self, gate):
         if gate == self._source:
             raise ValueError('Cannot duplicate source gate')
@@ -975,13 +1155,15 @@ class GateDefinition:
             raise ValueError('Cannot duplicate sink gate')
 
         duplicate = gate._duplicate()
-        duplicate_state = gate._duplicate_state(self._state[gate.uid][0])
-        duplicate_outputs = copy.deepcopy(self._state[gate.uid][1])
+        duplicate_state = gate._duplicate_state(self._state[gate._uid][0])
+        duplicate_outputs = copy.deepcopy(self._state[gate._uid][1])
         self.add_gate(duplicate, state=duplicate_state, outputs=duplicate_outputs)
         return duplicate
 
     def __call__(self):
-        return CompoundGate(self)
+        gate = CompoundGate(self)
+        self._instance_uids.add(gate._uid)
+        return gate
     
     def __str__(self):
         name = self._name

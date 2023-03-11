@@ -71,7 +71,48 @@ class Bbox():
         return Bbox(self.center, self.width, self.height * scalar)
 
     def contains(self, x, y):
+        '''
+        Check whether the bounding box contains the given point
+        '''
         return (self.x1 <= x and x <= self.x2) and (self.y1 <= y and y <= self.y2)
+
+    def overlap(self, other):
+        # return not (self.x1 > other.x2 or self.x2 < other.x1 or
+        #     self.y1 > other.y2 or self.y2 < other.y1)
+        return (self.x1 < other.x2 and self.x2 > other.x1 and
+            self.y1 < other.y2 and self.y2 > other.y1)
+
+    def resolve_collision(rect1, rect2):
+        if not rect1.overlap(rect2):
+            return rect1, rect2
+
+        dx = min([rect1.x2 - rect2.x1, rect1.x1 - rect2.x2], key=abs)
+        dy = min([rect1.y2 - rect2.y1, rect1.y1 - rect2.y2], key=abs)
+
+        new_x1, new_y1, new_x2, new_y2 = rect2.bbox
+
+        if abs(dx) < abs(dy):
+            new_x1 += dx
+            new_x2 += dx
+        else:
+            new_y1 += dy
+            new_y2 += dy
+        #    if rect1.x2 < rect2.x1:
+        #         new_x1 = rect1.x2
+        #         new_x2 = rect2.x1 + rect2.x2 - rect2.x1
+        #     else:
+        #         new_x2 = rect1.x1
+        #         new_x1 = rect2.x2 - (rect2.x2 - rect2.x1)
+        # else:
+        #     if rect1.y2 < rect2.y1:
+        #         new_y1 = rect1.y2
+        #         new_y2 = rect2.y1 + rect2.y2 - rect2.y1
+        #     else:
+        #         new_y2 = rect1.y1
+        #         new_y1 = rect2.y2 - (rect2.y2 - rect2.y1)
+        rect2._bbox = (new_x1, new_y1, new_x2, new_y2)
+
+        return rect1, rect2
 
     def __getitem__(self, *args, **kwargs):
         return self._bbox.__getitem__(*args, *kwargs)

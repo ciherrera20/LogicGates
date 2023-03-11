@@ -1,0 +1,402 @@
+{
+    "project": {
+        "name": "Test1",
+        "definitions": {
+            "NOT": {
+                "name": "NOT",
+                "input_dims": [
+                    1
+                ],
+                "output_dims": [
+                    1
+                ],
+                "input_labels": [
+                    ""
+                ],
+                "output_labels": [
+                    ""
+                ],
+                "source": 0,
+                "sink": 1,
+                "gates": {
+                    "2": {
+                        "dims": [
+                            1
+                        ],
+                        "labels": [
+                            ""
+                        ]
+                    }
+                },
+                "gate_types": {
+                    "Source": [
+                        0
+                    ],
+                    "Sink": [
+                        1,
+                        2
+                    ],
+                    "NAND": [
+                        3
+                    ]
+                },
+                "connections": {
+                    "3": {
+                        "1": [
+                            [
+                                0,
+                                0
+                            ]
+                        ],
+                        "2": [
+                            [
+                                0,
+                                0
+                            ]
+                        ]
+                    },
+                    "0": {
+                        "3": [
+                            [
+                                0,
+                                0
+                            ],
+                            [
+                                0,
+                                1
+                            ]
+                        ]
+                    }
+                },
+                "state": {
+                    "inputs": [
+                        0
+                    ],
+                    "outputs": [
+                        1
+                    ],
+                    "3": [
+                        null,
+                        [
+                            1
+                        ]
+                    ],
+                    "2": [
+                        [
+                            1
+                        ],
+                        []
+                    ]
+                }
+            },
+            "Clock": {
+                "name": "Clock",
+                "input_dims": [],
+                "output_dims": [
+                    1
+                ],
+                "input_labels": [],
+                "output_labels": [
+                    ""
+                ],
+                "source": 4,
+                "sink": 5,
+                "gates": {},
+                "gate_types": {
+                    "Source": [
+                        4
+                    ],
+                    "Sink": [
+                        5
+                    ],
+                    "NOT": [
+                        6
+                    ]
+                },
+                "connections": {
+                    "6": {
+                        "6": [
+                            [
+                                0,
+                                0
+                            ]
+                        ],
+                        "5": [
+                            [
+                                0,
+                                0
+                            ]
+                        ]
+                    }
+                },
+                "state": {
+                    "inputs": [],
+                    "outputs": [
+                        0
+                    ],
+                    "6": [
+                        null,
+                        [
+                            0
+                        ]
+                    ]
+                }
+            },
+            "TestA": {
+                "name": "TestA",
+                "input_dims": [],
+                "output_dims": [
+                    1
+                ],
+                "input_labels": [],
+                "output_labels": [
+                    ""
+                ],
+                "source": 7,
+                "sink": 8,
+                "gates": {},
+                "gate_types": {
+                    "Source": [
+                        7
+                    ],
+                    "Sink": [
+                        8
+                    ],
+                    "Clock": [
+                        9
+                    ]
+                },
+                "connections": {
+                    "9": {
+                        "8": [
+                            [
+                                0,
+                                0
+                            ]
+                        ]
+                    }
+                },
+                "state": {
+                    "inputs": [],
+                    "outputs": [
+                        null
+                    ],
+                    "9": [
+                        null,
+                        [
+                            null
+                        ]
+                    ]
+                }
+            },
+            "TestB": {
+                "name": "TestB",
+                "input_dims": [],
+                "output_dims": [
+                    1
+                ],
+                "input_labels": [],
+                "output_labels": [
+                    ""
+                ],
+                "source": 10,
+                "sink": 11,
+                "gates": {},
+                "gate_types": {
+                    "Source": [
+                        10
+                    ],
+                    "Sink": [
+                        11
+                    ],
+                    "TestA": [
+                        12
+                    ]
+                },
+                "connections": {
+                    "12": {
+                        "11": [
+                            [
+                                0,
+                                0
+                            ]
+                        ]
+                    }
+                },
+                "state": {
+                    "inputs": [],
+                    "outputs": [
+                        null
+                    ],
+                    "12": [
+                        null,
+                        [
+                            null
+                        ]
+                    ]
+                }
+            }
+        },
+        "dependency_graph": {
+            "NAND": [],
+            "Reshaper": [],
+            "Constant": [],
+            "Datetime": [],
+            "Source": [],
+            "Sink": [],
+            "NOT": [
+                "Source",
+                "Sink",
+                "NAND"
+            ],
+            "Clock": [
+                "Source",
+                "Sink",
+                "NOT"
+            ],
+            "TestA": [
+                "Source",
+                "Sink",
+                "Clock"
+            ],
+            "TestB": [
+                "Source",
+                "Sink",
+                "TestA"
+            ]
+        }
+    },
+    "directory": {
+        "folders": {
+            "builtins": {
+                "deleteable": true,
+                "renameable": true,
+                "visible": true
+            }
+        },
+        "components": {
+            "NAND": {
+                "deleteable": false,
+                "renameable": false,
+                "visible": true
+            },
+            "Reshaper": {
+                "deleteable": false,
+                "renameable": false,
+                "visible": true
+            },
+            "Datetime": {
+                "deleteable": false,
+                "renameable": false,
+                "visible": true
+            },
+            "Constant": {
+                "deleteable": false,
+                "renameable": false,
+                "visible": true
+            },
+            "Sink": {
+                "deleteable": false,
+                "renameable": false,
+                "visible": true
+            },
+            "NOT": {
+                "deleteable": true,
+                "renameable": true,
+                "visible": true
+            },
+            "Clock": {
+                "deleteable": true,
+                "renameable": true,
+                "visible": true
+            },
+            "TestA": {
+                "deleteable": true,
+                "renameable": true,
+                "visible": true
+            },
+            "TestB": {
+                "deleteable": true,
+                "renameable": true,
+                "visible": true
+            }
+        },
+        "structure": {
+            "builtins": {
+                "NAND": null,
+                "Reshaper": null,
+                "Datetime": null,
+                "Constant": null,
+                "Sink": null
+            },
+            "NOT": null,
+            "Clock": null,
+            "TestA": null,
+            "TestB": null
+        }
+    },
+    "workspaces": {
+        "NOT": {
+            "0": [
+                278.0,
+                370.0
+            ],
+            "1": [
+                278.0,
+                179.0
+            ],
+            "2": [
+                377.0,
+                179.0
+            ],
+            "3": [
+                278.0,
+                284.0
+            ]
+        },
+        "Clock": {
+            "4": [
+                290.0,
+                364.5
+            ],
+            "5": [
+                289.0,
+                173.5
+            ],
+            "6": [
+                289.0,
+                278.5
+            ]
+        },
+        "TestA": {
+            "7": [
+                322.0,
+                416.5
+            ],
+            "8": [
+                322.0,
+                204.5
+            ],
+            "9": [
+                322.0,
+                303.0
+            ]
+        },
+        "TestB": {
+            "10": [
+                298.0,
+                462.5
+            ],
+            "11": [
+                295.0,
+                217.5
+            ],
+            "12": [
+                295.0,
+                356.0
+            ]
+        }
+    },
+    "current_workspace": "TestB",
+    "tps": 0
+}

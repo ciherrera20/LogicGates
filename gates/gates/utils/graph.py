@@ -181,14 +181,16 @@ class DirectedGraph():
             final order and performs Tarjan's algorithm on
             the graph formed by the remaining vertices.
         '''
-        order, cut_vertices = [], OrderedSet()
+        # order, cut_vertices = [], OrderedSet()
+        order, cut_edges = [], OrderedSet()
         shortest_paths = self.get_shortest_paths(source)
         for component in self.get_strongly_connected_components():
             if len(component) == 1:
                 v = list(component)[0]
                 order.append(v)
                 if v in self._to_dict[v]:
-                    cut_vertices.add(v)
+                    # cut_vertices.add(v)
+                    cut_edges.add((v, v))
             else:
                 g = DirectedGraph()
                 source = None
@@ -198,21 +200,63 @@ class DirectedGraph():
                     g.add_vertex(v)
                 
                 for w in component:
-                    # if w is not source:
                     for v in self._to_dict[w]:
                         if v in component:
                             if w is not source:
                                 g.add_edge(v, w)
                             else:
-                                cut_vertices.add(v)
+                                # cut_vertices.add(v)
+                                cut_edges.add((v, w))
                 
-                rec_order, rec_cut_vertices = g.get_order(source)
+                # rec_order, rec_cut_vertices = g.get_order(source)
+                rec_order, rec_cut_edges = g.get_order(source)
                 if flattened:
                     order += rec_order
                 else:
                     order.append(rec_order)
-                cut_vertices = cut_vertices.union(rec_cut_vertices)
-        return order, cut_vertices
+                # cut_vertices = cut_vertices.union(rec_cut_vertices)
+                cut_edges = cut_edges.union(rec_cut_edges)
+        # return order, cut_vertices
+        return order, cut_edges
+
+    def remove_cycles(self, source):
+        '''
+        Use the cut_edges returned by get_order to remove cycles
+        '''
+        order, cut_edges = self.get_order(source)
+        acyclic = DirectedGraph.deserialize(self.serialize())
+        for (v, w) in cut_edges:
+            acyclic.remove_edge(v, w)
+        return acyclic, order
+
+    def get_layers(self, source):
+        '''
+        Put the vertices into layers
+        '''
+        acyclic, order = self.remove_cycles(source)
+
+        # Create a dictionary to hold the rank values for each node
+        rank = {}
+        # Initialize the rank of each node to zero
+        for v in acyclic._from_dict.keys():
+            rank[v] = 0
+
+        # Iterate over the nodes in topological order
+        for i, w in enumerate(order):
+            # Find the maximum rank of the predecessors of the current node
+            max_rank = -1
+
+            # Keep the source always below every other node, even if they are at the same layer
+            predecessors = acyclic.get_direct_predecessors(w)
+            if i == 1:
+                predecessors.add(source)
+            for v in predecessors:
+                if rank[v] > max_rank:
+                    max_rank = rank[v]
+            # Set the rank of the current node to one more than the maximum rank
+            rank[w] = max_rank + 1
+
+        return rank
 
     def get_direct_successors(self, v):
         '''
@@ -225,6 +269,46 @@ class DirectedGraph():
         Get the direct predecessors of v
         '''
         return OrderedSet([w for w in self._to_dict[v]])
+    
+    def get_all_successors(self, v):
+        '''
+        Get all successors of v
+        '''
+        old_v = v
+
+        # Perform a breadth first search
+        successors = OrderedSet([v])
+        queue = deque([v])
+        while len(queue) != 0:
+            v = queue.pop()
+            for w in self._from_dict[v]:
+                if w not in successors:
+                    successors.add(w)
+                    queue.appendleft(w)
+        
+        # Remove the source vertex from the list and return
+        successors.remove(old_v)
+        return successors
+
+    def get_all_predecessors(self, v):
+        '''
+        Get all predecessors of v
+        '''
+        old_v = v
+
+        # Perform a breadth first search
+        predecessors = OrderedSet([v])
+        queue = deque([v])
+        while len(queue) != 0:
+            v = queue.pop()
+            for w in self._to_dict[v]:
+                if w not in predecessors:
+                    predecessors.add(w)
+                    queue.appendleft(w)
+        
+        # Remove the source vertex from the list and return
+        predecessors.remove(old_v)
+        return predecessors
 
     def serialize(self):
         return self._from_dict

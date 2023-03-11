@@ -1,0 +1,409 @@
+{
+    "project": {
+        "name": "test",
+        "definitions": {
+            "TestA": {
+                "name": "TestA",
+                "input_dims": [
+                    1
+                ],
+                "output_dims": [
+                    1
+                ],
+                "input_labels": [
+                    ""
+                ],
+                "output_labels": [
+                    ""
+                ],
+                "source": 11,
+                "sink": 12,
+                "gates": {},
+                "gate_types": {
+                    "Source": [
+                        11
+                    ],
+                    "Sink": [
+                        12
+                    ],
+                    "NAND": [
+                        25
+                    ]
+                },
+                "connections": {
+                    "25": {
+                        "12": [
+                            [
+                                0,
+                                0
+                            ]
+                        ],
+                        "25": [
+                            [
+                                0,
+                                1
+                            ]
+                        ]
+                    },
+                    "11": {
+                        "25": [
+                            [
+                                0,
+                                0
+                            ]
+                        ]
+                    }
+                },
+                "state": {
+                    "inputs": [
+                        0
+                    ],
+                    "outputs": [
+                        1
+                    ],
+                    "25": [
+                        null,
+                        [
+                            1
+                        ]
+                    ]
+                }
+            },
+            "TestB": {
+                "name": "TestB",
+                "input_dims": [
+                    1
+                ],
+                "output_dims": [
+                    1
+                ],
+                "input_labels": [
+                    ""
+                ],
+                "output_labels": [
+                    ""
+                ],
+                "source": 15,
+                "sink": 16,
+                "gates": {},
+                "gate_types": {
+                    "Source": [
+                        15
+                    ],
+                    "Sink": [
+                        16
+                    ],
+                    "TestA": [
+                        17
+                    ]
+                },
+                "connections": {
+                    "17": {
+                        "16": [
+                            [
+                                0,
+                                0
+                            ]
+                        ],
+                        "17": [
+                            [
+                                0,
+                                0
+                            ]
+                        ]
+                    }
+                },
+                "state": {
+                    "inputs": [
+                        0
+                    ],
+                    "outputs": [
+                        null
+                    ],
+                    "17": [
+                        {},
+                        [
+                            null
+                        ]
+                    ]
+                }
+            },
+            "TestC": {
+                "name": "TestC",
+                "input_dims": [
+                    1
+                ],
+                "output_dims": [
+                    1
+                ],
+                "input_labels": [
+                    ""
+                ],
+                "output_labels": [
+                    ""
+                ],
+                "source": 18,
+                "sink": 19,
+                "gates": {},
+                "gate_types": {
+                    "Source": [
+                        18
+                    ],
+                    "Sink": [
+                        19
+                    ],
+                    "TestB": [
+                        20
+                    ]
+                },
+                "connections": {
+                    "20": {
+                        "19": [
+                            [
+                                0,
+                                0
+                            ]
+                        ]
+                    }
+                },
+                "state": {
+                    "inputs": [
+                        0
+                    ],
+                    "outputs": [
+                        null
+                    ],
+                    "20": [
+                        {
+                            "17": [
+                                {},
+                                [
+                                    null
+                                ]
+                            ]
+                        },
+                        [
+                            null
+                        ]
+                    ]
+                }
+            },
+            "TestD": {
+                "name": "TestD",
+                "input_dims": [
+                    1
+                ],
+                "output_dims": [
+                    1
+                ],
+                "input_labels": [
+                    ""
+                ],
+                "output_labels": [
+                    ""
+                ],
+                "source": 21,
+                "sink": 22,
+                "gates": {},
+                "gate_types": {
+                    "Source": [
+                        21
+                    ],
+                    "Sink": [
+                        22
+                    ],
+                    "TestC": [
+                        23
+                    ]
+                },
+                "connections": {
+                    "23": {
+                        "22": [
+                            [
+                                0,
+                                0
+                            ]
+                        ]
+                    }
+                },
+                "state": {
+                    "inputs": [
+                        0
+                    ],
+                    "outputs": [
+                        null
+                    ],
+                    "23": [
+                        {
+                            "20": [
+                                {
+                                    "17": [
+                                        {},
+                                        [
+                                            null
+                                        ]
+                                    ]
+                                },
+                                null
+                            ]
+                        },
+                        [
+                            null
+                        ]
+                    ]
+                }
+            }
+        },
+        "dependency_graph": {
+            "NAND": [],
+            "Reshaper": [],
+            "Constant": [],
+            "Datetime": [],
+            "Source": [],
+            "Sink": [],
+            "TestA": [
+                "Source",
+                "Sink",
+                "NAND"
+            ],
+            "TestB": [
+                "Source",
+                "Sink",
+                "TestA"
+            ],
+            "TestC": [
+                "Source",
+                "Sink",
+                "TestB"
+            ],
+            "TestD": [
+                "Source",
+                "Sink",
+                "TestC"
+            ]
+        }
+    },
+    "directory": {
+        "folders": {
+            "builtins": {
+                "deleteable": true,
+                "renameable": true,
+                "visible": true
+            }
+        },
+        "components": {
+            "NAND": {
+                "deleteable": false,
+                "renameable": false,
+                "visible": true
+            },
+            "Reshaper": {
+                "deleteable": false,
+                "renameable": false,
+                "visible": true
+            },
+            "Datetime": {
+                "deleteable": false,
+                "renameable": false,
+                "visible": true
+            },
+            "Constant": {
+                "deleteable": false,
+                "renameable": false,
+                "visible": true
+            },
+            "TestA": {
+                "deleteable": true,
+                "renameable": true,
+                "visible": true
+            },
+            "TestB": {
+                "deleteable": true,
+                "renameable": true,
+                "visible": true
+            },
+            "TestC": {
+                "deleteable": true,
+                "renameable": true,
+                "visible": true
+            },
+            "TestD": {
+                "deleteable": true,
+                "renameable": true,
+                "visible": true
+            }
+        },
+        "structure": {
+            "builtins": {
+                "NAND": null,
+                "Reshaper": null,
+                "Datetime": null,
+                "Constant": null
+            },
+            "TestA": null,
+            "TestB": null,
+            "TestC": null,
+            "TestD": null
+        }
+    },
+    "workspaces": {
+        "TestA": {
+            "12": [
+                300.0,
+                214.0
+            ],
+            "11": [
+                290.0,
+                403.0
+            ],
+            "25": [
+                300.0,
+                300.0
+            ]
+        },
+        "TestB": {
+            "16": [
+                288.0,
+                175.5
+            ],
+            "15": [
+                289.0,
+                454.5
+            ],
+            "17": [
+                288.0,
+                305.0
+            ]
+        },
+        "TestC": {
+            "19": [
+                288.0,
+                133.5
+            ],
+            "18": [
+                288.0,
+                393.5
+            ],
+            "20": [
+                288.0,
+                266.0
+            ]
+        },
+        "TestD": {
+            "22": [
+                296.0,
+                130.5
+            ],
+            "21": [
+                297.0,
+                388.5
+            ],
+            "23": [
+                296.0,
+                268.0
+            ]
+        }
+    },
+    "current_workspace": "TestB",
+    "tps": 10
+}

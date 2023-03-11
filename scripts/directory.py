@@ -46,8 +46,7 @@ class Directory(ttk.Treeview):
             builtins_folder = self._add_folder('', 'builtins')
             for name in self._project.get_gate_names():
                 if name in Project.BUILTIN_GATES:
-                    if name == 'Sink' or name == 'Source':
-                        print(name)
+                    if name == 'Source':
                         self._add_component(builtins_folder, name, deleteable=False, renameable=False, visible=False)
                     else:
                         self._add_component(builtins_folder, name, deleteable=False, renameable=False)

@@ -11,7 +11,7 @@ class Sink(Gate):
     def __call__(self, inputs, state=None):
         for i, input in enumerate(inputs):
             state[i] = input
-        return None
+        return []
     
     def serialize(self):
         return {'dims': self._input_dims, 'labels': self._input_labels}

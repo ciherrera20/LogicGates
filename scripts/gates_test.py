@@ -4,12 +4,31 @@ import json
 
 if __name__ == '__main__':
     # Open project from the save file
-    with open('../saves/frame.json', 'r') as f:
-        obj = json.load(f)['project']
-    gates = {}
-    project = Project.deserialize(obj, gates)
+    # with open('../saves/test0.json', 'r') as f:
+    #     obj = json.load(f)['project']
+    # gates = {}
+    # project = Project.deserialize(obj, gates)
 
-    # project = Project('test')
+    project = Project('test')
+
+    TestA = project.define('TestA', [1], [1])
+    TestA.tie_input_to_output(0, 0)
+
+    TestB = project.define('TestB', [1], [1])
+    testA0 = TestA()
+    TestB.add_gate(testA0)
+    TestB.add_connection((testA0, 0), (0, testA0))
+    TestB.tie_output_to((testA0, 0), 0)
+
+    TestC = project.define('TestC', [1], [1])
+    testB0 = TestB()
+    TestC.add_gate(testB0)
+    TestC.tie_output_to((testB0, 0), 0)
+
+    TestD = project.define('TestD', [1], [1])
+    testC0 = TestC()
+    TestD.add_gate(testC0)
+    TestD.tie_output_to((testC0, 0), 0)
 
     # nand0 = Nand()  # gate 0
     # nand1 = Nand()  # gate 1
