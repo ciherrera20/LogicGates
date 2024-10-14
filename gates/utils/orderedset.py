@@ -268,6 +268,10 @@ class OrderedSet(MutableSet[T], Sequence[T]):
         elem = self.items[index]
         del self.items[index]
         del self.map[elem]
+        if elem != -1:
+            for k, v in self.map.items():
+                if v >= index and v > 0:
+                    self.map[k] = v - 1
         return elem
 
     def discard(self, key: T) -> None:
