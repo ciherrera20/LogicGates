@@ -23,8 +23,8 @@ class App(tk.Tk):
         screenwidth = self.winfo_screenwidth()
         screenheight = self.winfo_screenheight()
         self.title('Logic Gates')
-        self.iconbitmap('./assets/comp.ico')
-        self.state('zoomed')
+        # self.iconbitmap('./assets/comp.ico')
+        # self.state('zoomed')
         self.minsize(int(screenwidth * 0.5), int(screenheight * 0.5))
 
         # Create the project menu

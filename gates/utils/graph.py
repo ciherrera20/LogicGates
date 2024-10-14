@@ -110,6 +110,7 @@ class DirectedGraph():
 
         # Helper function to perform depth first search
         def helper(v):
+            print("Current unvisited is:", unvisited)
             nonlocal index
             stack.append(v)
             vertex_dict[v] = (index, index, True, None)  # Hold index, lowlink, onstack status, and component index
@@ -141,19 +142,19 @@ class DirectedGraph():
 
                 # Pop from the stack until the popped vertex is the current vertex
                 w = stack.pop()
-                w_index, w_lowlink, w_onstack, _ = vertex_dict[w]
+                w_index, w_lowlink, _, _ = vertex_dict[w]
                 vertex_dict[w] = (w_index, w_lowlink, False, comp_index)
                 component.add(w)
                 while w != v:
                     w = stack.pop()
-                    w_index, w_lowlink, w_onstack, _ = vertex_dict[w]
+                    w_index, w_lowlink, _, _ = vertex_dict[w]
                     vertex_dict[w] = (w_index, w_lowlink, False, comp_index)
                     component.add(w)
                 sc_components.insert(0, component)
 
         # Ensure that every vertex is put into a component
         while len(unvisited) != 0:
-            v = unvisited.pop()
+            v = unvisited.pop(0)
             helper(v)
         
         # Turn the graph into a DAG
